@@ -159,7 +159,7 @@ local function process_monitored_object()
 					end
 					if node then
 						for _, request in pairs(parameters.request_table) do
-							nodelib.add_request(node, request.item, request.count)
+							nodelib.add_request(node, request.item, request.count, nil, node.requested)
 						end
 					end
 				end

@@ -198,17 +198,19 @@ end
 ---@param item string
 ---@param count integer
 ---@param delivery integer?
-function nodelib.add_request(node, item, count, delivery)
+---@param old_requests table<string, RequestedItem>
+function nodelib.add_request(node, item, count, delivery, old_requests)
     ---@type RequestedItem
-    local existing = (node.requested and node.requested[item])
+    local existing = (old_requests and old_requests[item])
+
+    if not node.requested then
+        node.requested = {}
+    end
     if existing then
         node.requested[item] = existing
-        existing.count = (existing.count or 0) + count
+        existing.count = count
         existing.delivery = delivery
     else
-        if not node.requested then
-            node.requested = {}
-        end
         node.requested[item] = {
             count = count,
             item = item,

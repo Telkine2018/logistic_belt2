@@ -353,6 +353,7 @@ local function save_node_parameters(player)
 
 	local request_table = tools.get_child(frame, np("request_table"))
 	if request_table ~= nil then
+		local old_requests = selected_node.requested
 		selected_node.requested = nil
 
 		local children = request_table.children
@@ -367,7 +368,7 @@ local function save_node_parameters(player)
 			local delivery = tools.text_to_number(f_delivery.text) or config.default_delivery
 
 			if count and item then
-				nodelib.add_request(selected_node, item, count, delivery)
+				nodelib.add_request(selected_node, item, count, delivery, old_requests)
 			end
 			index = index + 3
 		end
