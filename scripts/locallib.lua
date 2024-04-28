@@ -49,6 +49,14 @@ for _, name in pairs(locallib.container_types) do
 	locallib.container_type_map[name] = true
 end
 
+locallib.excluded_containers =
+{
+	["factory_graph-recipe-symbol"] = true,
+	["factory_graph-product-symbol"] = true,
+	["factory_graph-unresearched-symbol"] = true,
+	["factory_graph-product-selector"] = true
+}
+
 locallib.sushi_positions = {
 	{ { { 0, -1 }, { -0.25, 0.55 } }, { { 0, -1 }, { 0.25, 0.55 } } },
 }
@@ -312,7 +320,7 @@ function locallib.recompute_container(container)
 	local h = container.tile_height / 2 + 1
 
 	local search_box = { { pos.x - w, pos.y - h }, { pos.x + w, pos.y + h } }
-	local devices = container.surface.find_entities_filtered { name = {commons.device_name, commons.overflow_name}, area = search_box }
+	local devices = container.surface.find_entities_filtered { name = { commons.device_name, commons.overflow_name }, area = search_box }
 	for _, d in ipairs(devices) do
 		locallib.add_monitored_device(d)
 	end

@@ -181,6 +181,7 @@ local function show_requests(frame, node)
     end
 end
 
+
 ---@param player LuaPlayer
 ---@param entity LuaEntity
 function inspectlib.show(player, entity)
@@ -189,18 +190,18 @@ function inspectlib.show(player, entity)
         return
     end
 
-    local inner_frame = get_frame(player)
-    local function print(msg)
-        inner_frame.add { type = "label", caption = msg }
-    end
 
     local context = structurelib.get_context()
-    if locallib.container_type_map[entity.type] then
+    if locallib.container_type_map[entity.type] and not locallib.excluded_containers[entity.name] then
+
         local node = structurelib.get_node(entity)
         if not node then
-            print("Node not found")
+            inspectlib.close(player)
             return
         end
+
+        local inner_frame = get_frame(player)
+    
         local msg = { "", "Node(" .. node.id .. ") " }
         if node.disabled then
             table.insert(msg, "[img=" .. prefix .. "_stopped]")
