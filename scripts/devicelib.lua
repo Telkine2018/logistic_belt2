@@ -220,6 +220,7 @@ local function on_build(entity, tags, player_index)
 			local node = structurelib.create_node(entity)
 			node.requested = tags.requested --[[@as table<string, RequestedItem> ]]
 			node.provided = tags.provided --[[@as table<string, ProvidedItem> ]]
+			node.restrictions = tags.restrictions --[[@as table<string, boolean> ]]
 		end
 		locallib.recompute_container(entity)
 	else

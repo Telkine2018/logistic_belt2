@@ -51,9 +51,9 @@ data:extend {
 		name = commons.device_name,
 		enabled = false,
 		ingredients = {
-			{ 'electronic-circuit', 10 },
-			{ 'iron-plate',         30 },
-			{ 'iron-gear-wheel',    20 }
+			{ 'electronic-circuit', 1 },
+			{ 'iron-plate',         2 },
+			{ 'iron-gear-wheel',    2 }
 		},
 		result = commons.device_name
 	},
@@ -61,9 +61,9 @@ data:extend {
 		name = commons.sushi_name,
 		enabled = false,
 		ingredients = {
-			{ 'electronic-circuit', 2 },
-			{ 'iron-plate',         10 },
-			{ 'iron-gear-wheel',    5 }
+			{ 'electronic-circuit', 1 },
+			{ 'iron-plate',         2 },
+			{ 'iron-gear-wheel',    2 }
 		},
 		result = commons.sushi_name
 	},
@@ -71,9 +71,9 @@ data:extend {
 		name = commons.overflow_name,
 		enabled = false,
 		ingredients = {
-			{ 'electronic-circuit', 10 },
-			{ 'iron-plate',         30 },
-			{ 'iron-gear-wheel',    20 }
+			{ 'electronic-circuit', 1 },
+			{ 'iron-plate',         2 },
+			{ 'iron-gear-wheel',    2 }
 		},
 		result = commons.overflow_name
 	},

@@ -70,6 +70,7 @@
 ---@field priority integer
 ---@field buffer_size integer
 ---@field overflows table<integer, IOPoint>
+---@field restrictions table<string, boolean>?
 
 ---@class Connection
 ---@field id integer

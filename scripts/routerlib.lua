@@ -246,7 +246,7 @@ function routerlib.set_routers_in_cluster(entity, routers, link_id, filters)
         merge_filters = filters
     end
 
-    local requested, provided
+    local requested, provided, restrictions
     for _, router in pairs(routers) do
         local org_link_id = router.link_id
         if org_link_id ~= link_id then
@@ -254,6 +254,7 @@ function routerlib.set_routers_in_cluster(entity, routers, link_id, filters)
             if oldnode then
                 requested = oldnode.requested or requested
                 provided = oldnode.provided or provided
+                restrictions = oldnode.restrictions or restrictions
             end
             cluster.routers[router.unit_number] = router
             changed_clusters[link_id] = cluster
@@ -312,6 +313,7 @@ function routerlib.set_routers_in_cluster(entity, routers, link_id, filters)
     local node = routerlib.create_node(cluster)
     node.requested = node.requested or requested
     node.provided = node.provided or provided
+    node.restrictions = node.restrictions or restrictions
     return cluster
 end
 
@@ -396,6 +398,9 @@ function routerlib.on_build(entity, tags)
         end
         if tags.provided then
             node.provided = tags.provided --[[@as table<string, ProvidedItem> ]]
+        end
+        if tags.restrictions then
+            node.restrictions = tags.restrictions --[[@as table<string, boolean> ]]
         end
     end
     routerlib.reconnect_changes()

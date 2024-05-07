@@ -2,13 +2,10 @@ local migration = require("__flib__.migration")
 
 local commons = require "scripts.commons"
 local tools = require "scripts.tools"
-local locallib = require "scripts.locallib"
 local sushilib = require "scripts.sushilib"
-local routerlib = require "scripts.routerlib"
-local inspectlib = require "scripts.inspect"
 local devicelib = require "scripts.devicelib"
 local structurelib = require "scripts.structurelib"
-local overflowlib = require "scripts.overflow"
+local devicegui = require "scripts.devicegui"
 
 local prefix = commons.prefix
 
@@ -57,6 +54,27 @@ local function remote_install()
         update_overflow = function(overflow, parameters)
             devicelib.update_parameters(overflow, parameters)
         end
+    })
+
+    remote.add_interface("logistic_belt2_filtering", {
+
+
+        set_restrictions =
+        ---@param unit_number integer
+        ---@param item_set table<string, boolean>²
+            function(unit_number, item_set, player_index)
+                local context = structurelib.get_context()
+
+                local node = context.nodes[unit_number]
+                if not node then return end
+
+                node.restrictions = item_set
+
+                local player = game.players[player_index]
+                if player.opened and player.opened.unit_number == unit_number then
+                    devicegui.open(player, player.opened --[[@as LuaEntity]])
+                end
+            end
     })
 end
 

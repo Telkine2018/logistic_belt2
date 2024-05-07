@@ -37,9 +37,9 @@ if use_router then
 			name = prefix .. '-router',
 			enabled = false,
 			ingredients = {
-				{ 'electronic-circuit', 20 },
-				{ 'iron-plate', 30 },
-				{ 'iron-gear-wheel', 10 }
+				{ 'electronic-circuit', 3 },
+				{ 'iron-plate', 3 },
+				{ 'iron-gear-wheel', 1 }
 			},
 			result = prefix .. '-router'
 		}

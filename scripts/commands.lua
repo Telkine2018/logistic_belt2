@@ -63,6 +63,12 @@ local function dump()
                     ",provided=" .. tostring(provided.provided))
             end
         end
+        if node.restrictions then
+            print("  ---")
+            for item, _ in pairs(node.restrictions) do
+                print("    RESTRICTION[" .. item .. "] item=" .. item)
+            end
+        end
         if node.requested then
             print("  ---")
             for item, requested in pairs(node.requested) do

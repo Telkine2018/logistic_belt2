@@ -89,6 +89,7 @@ function structurelib.get_context()
                 purge_content(node.provided)
                 purge_content(node.requested)
                 purge_content(node.remaining)
+                purge_content(node.restrictions)
                 if node.overflows then
                     for _, overflow in pairs(node.overflows) do
                         purge_content(overflow.overflows)
@@ -380,6 +381,9 @@ local function find_producer(node, req, amount)
         local current = nodes_to_parse[index]
         local previous_provided = current.previous_provided
         index = index + 1
+        if current.restrictions and not current.restrictions[item] then
+            goto skip_node
+        end
         if current.inputs then
             for _, input in pairs(current.inputs) do
                 local connection = input.connection
@@ -415,6 +419,7 @@ local function find_producer(node, req, amount)
                 end
             end
         end
+        ::skip_node::
     end
     return found_node, found_provided, found_available
 end

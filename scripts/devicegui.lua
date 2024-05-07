@@ -9,7 +9,6 @@ local inspectlib = require "scripts.inspect"
 local devicelib = require "scripts.devicelib"
 local structurelib = require "scripts.structurelib"
 local nodelib = require "scripts.nodelib"
-local overflowlib = require "scripts.overflow"
 local config = require "scripts.config"
 
 local prefix = commons.prefix
@@ -28,11 +27,12 @@ local function np(name)
 	return prefix .. "." .. name
 end
 
+local devicegui = {}
+
 local left_panel_names = {
 	["memory-unit"] = true,
 	-- ["supply-depot-chest"] = true
 }
-
 
 --------------------------------------------------
 
@@ -79,21 +79,36 @@ local function add_provide_field(request_flow)
 	return item_field
 end
 
+---@param request_flow LuaGuiElement
+local function add_restrictions_field(request_flow)
+	local item_field = request_flow.add {
+		type = "choose-elem-button",
+		elem_type = "item"
+	}
+	tools.set_name_handler(item_field, np("restrictions_item"))
+	return item_field
+end
+
 ---@param player LuaPlayer
 ---@return LuaGuiElement
 local function get_frame(player)
 	return player.gui.relative[device_panel_name] or player.gui.left[device_panel_name]
 end
 
-
 ---@param event EventData.on_gui_opened
 local function on_gui_open_node_panel(event)
-	local player = game.players[event.player_index]
 	local entity = event.entity
-
+	local player = game.players[event.player_index]
 	if not entity or not entity.valid then
 		return
 	end
+	
+	devicegui.open(player, entity)
+end
+
+---@param player LuaPlayer
+---@param entity LuaEntity
+function devicegui.open(player, entity)
 
 	local node = structurelib.get_node(entity)
 	if not node then
@@ -103,8 +118,7 @@ local function on_gui_open_node_panel(event)
 		return
 	end
 
-	locallib.on_gui_closed(event --[[@as EventData.on_gui_closed]])
-
+	locallib.close_ui(player)
 	local vars = get_vars(player)
 	vars.selected = entity
 	vars.selected_node = node
@@ -148,7 +162,7 @@ local function on_gui_open_node_panel(event)
 	titleflow.add {
 		type = "sprite-button",
 		name = np("purge"),
-		tooltip = { np("purge_tooltip")},
+		tooltip = { np("purge_tooltip") },
 		style = "frame_action_button",
 		mouse_button_filter = { "left" },
 		sprite = prefix .. "_purge_white",
@@ -157,7 +171,7 @@ local function on_gui_open_node_panel(event)
 	titleflow.add {
 		type = "sprite-button",
 		name = np("reset"),
-		tooltip = { np("reset_tooltip")},
+		tooltip = { np("reset_tooltip") },
 		style = "frame_action_button",
 		mouse_button_filter = { "left" },
 		sprite = prefix .. "_reset_white",
@@ -166,7 +180,7 @@ local function on_gui_open_node_panel(event)
 	titleflow.add {
 		type = "sprite-button",
 		name = np("inspect"),
-		tooltip = { np("inspect_tooltip")},
+		tooltip = { np("inspect_tooltip") },
 		style = "frame_action_button",
 		mouse_button_filter = { "left" },
 		sprite = prefix .. "_inspect_white",
@@ -226,6 +240,25 @@ local function on_gui_open_node_panel(event)
 	end
 	add_provide_field(provide_flow)
 
+	line.style.top_margin = 10
+	inner_frame.add { type = "label", caption = { np("restrictions-label") } }
+	local restrictions_flow = inner_frame.add {
+		type = "table",
+		style_mods = { margin = 10 },
+		column_count = 6,
+		name = np("restrictions_table")
+	}
+	if node.restrictions then
+		for item, _ in pairs(node.restrictions) do
+			local item_field      = add_restrictions_field(restrictions_flow)
+			item_field.elem_value = item
+		end
+	end
+	add_restrictions_field(restrictions_flow)
+
+	line = inner_frame.add { type = "line" }
+
+
 	local bImport = inner_frame.add { type = "button", name = np("import-content"), caption = { np("import-content") } }
 	bImport.style.top_margin = 5
 end
@@ -251,7 +284,7 @@ tools.on_gui_click(np("import-content"),
 		if e.shift then
 			requests = nodelib.get_requests(node, true)
 		elseif e.control then
-			requests = nodelib.get_requests(node, true, true)			
+			requests = nodelib.get_requests(node, true, true)
 		end
 
 		provide_table.clear()
@@ -277,13 +310,13 @@ tools.on_gui_click(np("reset"),
 		if structurelib.is_orphan(node) then
 			structurelib.delete_node(node, node.id)
 			locallib.on_gui_closed(e --[[@as EventData.on_gui_closed]])
-			player.print({np("reset_deleted")})
+			player.print({ np("reset_deleted") })
 		elseif node.disabled then
 			local count = structurelib.start_network(node)
-			player.print({np("reset_started"), tostring(count)})
+			player.print({ np("reset_started"), tostring(count) })
 		else
 			local count = structurelib.stop_network(node)
-			player.print({np("reset_stopped"), tostring(count) })
+			player.print({ np("reset_stopped"), tostring(count) })
 		end
 	end)
 
@@ -405,8 +438,31 @@ local function save_node_parameters(player)
 		end
 	end
 
+	local restrictions_table = tools.get_child(frame, np("restrictions_table"))
+	if restrictions_table ~= nil then
+		---@type table<string, boolean>
+		local restrictions = {}
+
+		local children = restrictions_table.children
+		local index = 1
+		while index <= #children do
+			local f_item = children[index]
+			local item = f_item.elem_value
+
+			if item then
+				restrictions[item] = true
+			end
+			index = index + 1
+		end
+		selected_node.restrictions = nil
+		if next(restrictions) then
+			selected_node.restrictions = restrictions
+		end
+	end
+
 	return selected_node
 end
+
 
 ---@param e EventData.on_gui_click
 local function on_close(e)
@@ -485,6 +541,33 @@ local function on_provided_item_changed(e)
 end
 tools.on_named_event(np("provide_item"), defines.events.on_gui_elem_changed, on_provided_item_changed)
 
+---@param e EventData.on_gui_elem_changed
+local function on_restrictions_changed(e)
+	local player = game.players[e.player_index]
+	if not e.element or not e.element.valid then return end
+
+	local panel = get_frame(player)
+	if not panel then return end
+
+	local provide_table = tools.get_child(panel, np("restrictions_table"))
+	if not provide_table then return end
+
+	local children = provide_table.children
+	local count = #children
+	if e.element == children[count] then
+		if e.element.elem_value then
+			add_restrictions_field(provide_table)
+		end
+	else
+		if not e.element.elem_value then
+			if #children > 1 then
+				e.element.destroy()
+			end
+		end
+	end
+end
+tools.on_named_event(np("restrictions_item"), defines.events.on_gui_elem_changed, on_restrictions_changed)
+
 
 ---@param request_table table<string, table>
 local function dup_request(request_table)
@@ -523,7 +606,8 @@ local function register_mapping(bp, mapping, surface)
 							filters = filters and game.table_to_json(filters),
 							logistic_belt2_node = true,
 							provided = node and dup_request(node.provided) --[[@as table]],
-							requested = node and dup_request(node.requested) --[[@as table]]
+							requested = node and dup_request(node.requested) --[[@as table]],
+							restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
 						})
 					end
 				elseif locallib.container_type_map[entity.type] then
@@ -532,7 +616,8 @@ local function register_mapping(bp, mapping, surface)
 						bp.set_blueprint_entity_tags(index, {
 							logistic_belt2_node = true,
 							provided = dup_request(node.provided) --[[@as table]],
-							requested = dup_request(node.requested) --[[@as table]]
+							requested = dup_request(node.requested) --[[@as table]],
+							restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
 						})
 					end
 				elseif name == sushi_name then
@@ -572,7 +657,8 @@ local function register_mapping(bp, mapping, surface)
 								logistic_belt2_node = (node ~= nil),
 								filters = filters and game.table_to_json(filters),
 								provided = node and dup_request(node.provided) --[[@as table]],
-								requested = node and dup_request(node.requested) --[[@as table]]
+								requested = node and dup_request(node.requested) --[[@as table]],
+								restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
 							})
 						end
 					elseif locallib.container_type_map[game.entity_prototypes[bp_entity.name].type] then
@@ -583,7 +669,8 @@ local function register_mapping(bp, mapping, surface)
 								bp.set_blueprint_entity_tags(index, {
 									logistic_belt2_node = true,
 									provided = dup_request(node.provided) --[[@as table]],
-									requested = dup_request(node.requested) --[[@as table]]
+									requested = dup_request(node.requested) --[[@as table]],
+									restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
 								})
 							end
 						end
@@ -688,6 +775,7 @@ local function on_entity_cloned(ev)
 		local ndst = structurelib.create_node(dest)
 		ndst.requested = dup_request(nsrc.requested) --[[@as  table<string, RequestedItem>]]
 		ndst.provided = dup_request(nsrc.provided) --[[@as  table<string, ProvidedItem>]]
+		ndst.restrictions = tools.table_dup(nsrc.restrictions) --[[@as table]]
 		locallib.recompute_container(ndst.container)
 	elseif source_name == device_name or source_name == device_name then
 		local entity = dest
@@ -738,6 +826,7 @@ local function on_entity_settings_pasted(e)
 	if nsrc and ndst then
 		ndst.requested = tools.table_deep_copy(nsrc.requested)
 		ndst.provided = tools.table_deep_copy(nsrc.provided)
+		ndst.restrictions = tools.table_dup(nsrc.restrictions)
 	elseif src.name == sushi_name and dst.name == sushi_name then
 		sushilib.do_paste(src, dst, e)
 	elseif src.name == commons.overflow_name and dst.name == commons.overflow_name then
@@ -777,7 +866,7 @@ local function on_shift_button1(e)
 		end
 		if not node.inputs or not next(node.inputs) then return end
 
-		local recipe = machine.get_recipe() or machine.previous_recipe
+		local recipe = machine.get_recipe() or (machine.type == "furnace" and machine.previous_recipe)
 		if not recipe then return end
 
 		local requested = node.requested
@@ -942,3 +1031,5 @@ local function factory_organizer_install()
 end
 
 tools.on_load(factory_organizer_install)
+
+return devicegui
