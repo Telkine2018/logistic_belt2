@@ -1,4 +1,3 @@
-
 local commons = require "scripts.commons"
 local tools = require "scripts.tools"
 local structurelib = require "scripts.structurelib"
@@ -120,7 +119,6 @@ function nodelib.get_requests(node, all, include_source)
     return contents
 end
 
-
 ---@param node Node
 function nodelib.purge(node)
     ---@type table<integer, boolean>
@@ -131,37 +129,54 @@ function nodelib.purge(node)
 
     node.previous_provided = 0
     local contents = node.contents
+    if node.requested then
+        for _, request in pairs(node.requested) do
+            local count = contents[request.item]
+            if count then
+                count = count - request.count
+                if count <= 0 then
+                    contents[request.item] = nil
+                else
+                    contents[request.item] = count
+                end
+            end
+        end
+    end
+
     while index <= #nodes_to_parse do
         local current = nodes_to_parse[index]
+        if not next(contents) then
+            break
+        end
         index = index + 1
-        if current.requested then
-            for item, request in pairs(current.requested) do
-                local count = contents[item]
-                if count then
-                    local stack_size = game.item_prototypes[item].stack_size
-                    local slot_count = 0
-                    local inv = current.inventory
-                    local free 
-                    if inv.is_filtered() then
-                        for i=1, #inv do
-                            if inv.get_filter(i) == item then
-                                slot_count = slot_count + 1
+        if current ~= node then
+            if current.requested then
+                for item, request in pairs(current.requested) do
+                    local count = contents[item]
+                    if count then
+                        local stack_size = game.item_prototypes[item].stack_size
+                        local slot_count = 0
+                        local inv = current.inventory
+                        local free
+                        if inv.is_filtered() then
+                            for i = 1, #inv do
+                                if inv.get_filter(i) == item then
+                                    slot_count = slot_count + 1
+                                end
                             end
-                        end
-                        free = slot_count * stack_size - inv.get_item_count(item) - request.remaining
-                    else
-                        slot_count = inv.count_empty_stacks(false, false) - request.remaining
-                        free = slot_count * stack_size
-                    end
-                    if free > 0 then
-                        local amount = math.min(free, count)
-                        local remaing = count - amount
-                        if remaing == 0 then
-                            contents[item] = nil
+                            free = slot_count * stack_size - inv.get_item_count(item) - request.remaining
                         else
-                            contents[item] = remaing
+                            slot_count = inv.count_empty_stacks(false, false) - request.remaining
+                            free = slot_count * stack_size
                         end
-                        if current ~= node then
+                        if free > 0 then
+                            local amount = math.min(free, count)
+                            local remaing = count - amount
+                            if remaing == 0 then
+                                contents[item] = nil
+                            else
+                                contents[item] = remaing
+                            end
                             local n = current
                             n.previous = nil
                             while n ~= node do
@@ -192,8 +207,6 @@ function nodelib.purge(node)
     return contents
 end
 
-
-
 ---@param node Node
 ---@param item string
 ---@param count integer
@@ -219,7 +232,6 @@ function nodelib.add_request(node, item, count, delivery, old_requests)
         }
     end
 end
-
 
 ---@param device LuaEntity
 ---@return table<integer, LoaderInfo>?		@ scanned loader

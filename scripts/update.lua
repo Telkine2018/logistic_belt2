@@ -60,19 +60,20 @@ local function remote_install()
 
 
         set_restrictions =
-        ---@param unit_number integer
+        ---@param entity LuaEntity
         ---@param item_set table<string, boolean>²
-            function(unit_number, item_set, player_index)
+        ---@param player_index integer
+            function(entity, item_set, player_index)
                 local context = structurelib.get_context()
 
-                local node = context.nodes[unit_number]
+                local node = structurelib.get_node(entity)
                 if not node then return end
 
                 node.restrictions = item_set
 
                 local player = game.players[player_index]
-                if player.opened and player.opened.unit_number == unit_number then
-                    devicegui.open(player, player.opened --[[@as LuaEntity]])
+                if player.opened == entity then
+                    devicegui.open(player, entity)
                 end
             end
     })

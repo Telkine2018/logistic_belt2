@@ -77,7 +77,7 @@ function structurelib.get_context()
             if node.requested then
                 for _, request in pairs(node.requested) do
                     if not request.delivery then
-                        request.delivery = config.default_delivery
+                        request.delivery = math.ceil(request.count / 2)
                     end
                 end
             end
@@ -254,14 +254,12 @@ end
 ---@param node Node
 ---@return boolean
 function structurelib.is_orphan(node)
-
     return ((not node.inputs or next(node.inputs) == nil) and (not node.outputs or next(node.outputs) == nil))
 end
 
 ---@param node Node
 ---@param clean boolean?
 function structurelib.reset_node(node, clean)
-
     -- remove node
     if structurelib.is_orphan(node) then
         structurelib.delete_node(node, node.id)
@@ -382,7 +380,9 @@ local function find_producer(node, req, amount)
         local previous_provided = current.previous_provided
         index = index + 1
         if current.restrictions and not current.restrictions[item] then
-            goto skip_node
+            if not (current.provided and current.provided[item]) then
+                goto skip_node
+            end
         end
         if current.inputs then
             for _, input in pairs(current.inputs) do
@@ -474,7 +474,7 @@ local function insert_routing(producer, node, item, amount)
             end
 
             remaining = remaining - per_output
-            
+
             if rnode ~= producer and rnode.requested then
                 local intermediate = rnode.requested[item]
                 if intermediate then

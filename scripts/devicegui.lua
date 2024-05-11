@@ -102,14 +102,13 @@ local function on_gui_open_node_panel(event)
 	if not entity or not entity.valid then
 		return
 	end
-	
+
 	devicegui.open(player, entity)
 end
 
 ---@param player LuaPlayer
 ---@param entity LuaEntity
 function devicegui.open(player, entity)
-
 	local node = structurelib.get_node(entity)
 	if not node then
 		if entity.name == device_name then
@@ -497,7 +496,9 @@ local function on_request_item_changed(e)
 
 	if e.element.elem_value then
 		local index = tools.index_of(children, e.element)
-		children[index + 1].text = tostring(game.item_prototypes[e.element.elem_value].stack_size)
+		local stack_size = game.item_prototypes[e.element.elem_value].stack_size
+		children[index + 1].text = tostring(stack_size)
+		children[index + 2].text = tostring(math.ceil(stack_size / 2))
 	end
 	if e.element == children[count - 2] then
 		if e.element.elem_value then
@@ -864,7 +865,6 @@ local function on_shift_button1(e)
 		if not node then
 			return
 		end
-		if not node.inputs or not next(node.inputs) then return end
 
 		local recipe = machine.get_recipe() or (machine.type == "furnace" and machine.previous_recipe)
 		if not recipe then return end
@@ -873,19 +873,20 @@ local function on_shift_button1(e)
 		for _, ingredient in pairs(recipe.ingredients) do
 			if ingredient.type == "item" then
 				local item = ingredient.name
-				local count = math.min(100, game.item_prototypes[item].stack_size)
+				local count = math.min(200, game.item_prototypes[item].stack_size)
 				if not requested then
 					requested = {}
 					node.requested = requested
 				end
 				local req = tools.table_deep_copy(requested[item])
 				if req then
-					req.count = req.count + count
+					req.count = count
+					req.delivery = math.ceil(count / 2)
 				else
 					requested[item] = {
 						count = count,
 						item = item,
-						min = math.ceil(count / 2),
+						delivery = math.ceil(count / 2),
 						remaining = 0
 					}
 				end
