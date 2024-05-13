@@ -142,6 +142,11 @@ function nodelib.purge(node)
             end
         end
     end
+    if node.provided then
+        for item, _ in pairs(node.provided) do
+            contents[item] = nil
+        end
+    end
 
     while index <= #nodes_to_parse do
         local current = nodes_to_parse[index]

@@ -633,42 +633,58 @@ local function process_node(node)
     end
 
     -- process request
-    if requested and not node.disabled then
-        for item, req in pairs(requested) do
-            local count = (contents[item] or 0) + (delta[item] or 0)
-            local needed = req.count - count - req.remaining
-            if needed > 0 then
-                local to_deliver = needed
-                local delivery = req.delivery or config.default_delivery
-                if delivery > req.count then
-                    delivery = req.count
-                end
-                ::next_delivery::
-                do
-                    needed = delivery
+    if not node.disabled then
+        if requested then
+            for item, req in pairs(requested) do
+                local count = (contents[item] or 0) + (delta[item] or 0)
+                local needed = req.count - count - req.remaining
+                if needed > 0 then
+                    local to_deliver = needed
+                    local delivery = req.delivery or config.default_delivery
+                    if delivery > req.count then
+                        delivery = req.count
+                    end
+                    ::next_delivery::
+                    do
+                        needed = delivery
 
-                    local producer, provided_item, available = find_producer(node, req, needed)
-                    if producer then
-                        ---@cast provided_item -nil
-                        ---@cast available -nil
+                        local producer, provided_item, available = find_producer(node, req, needed)
+                        if producer then
+                            ---@cast provided_item -nil
+                            ---@cast available -nil
 
-                        local amount           = math.min(needed, available)
-                        provided_item.provided = provided_item.provided + amount
-                        req.remaining          = req.remaining + amount
+                            local amount           = math.min(needed, available)
+                            provided_item.provided = provided_item.provided + amount
+                            req.remaining          = req.remaining + amount
 
-                        if not insert_routing(producer, node, req.item, amount) then
-                            goto cancel
-                        end
+                            if not insert_routing(producer, node, req.item, amount) then
+                                goto cancel
+                            end
 
-                        to_deliver = to_deliver - amount
-                        if to_deliver > 0 then
-                            goto next_delivery
+                            to_deliver = to_deliver - amount
+                            if to_deliver > 0 then
+                                goto next_delivery
+                            end
                         end
                     end
                 end
             end
+            ::cancel::
         end
-        ::cancel::
+        if node.disabled_id then
+            rendering.destroy(node.disabled_id)
+            node.disabled_id = nil
+        end
+    else
+        if not node.disabled_id then
+            local container = node.container
+            if container and container.valid then
+                node.disabled_id = rendering.draw_sprite {
+                    target = container,
+                    surface = container.surface,
+                    sprite = prefix .. "_stopped" }
+            end
+        end
     end
     if node.overflows then
         for _, output in pairs(node.overflows) do
@@ -711,6 +727,23 @@ local function process_node(node)
             end
         end
         node.remaining = remaining
+    end
+
+    if node.remaining then
+        if not node.full_id then
+            local container = node.container
+            if container and container.valid then
+                node.full_id = rendering.draw_sprite {
+                    target = container,
+                    surface = container.surface,
+                    sprite = prefix .. "_full" }
+            end
+        end
+    else
+        if node.full_id then
+            rendering.destroy(node.full_id)
+            node.full_id = nil
+        end
     end
     node.contents = contents
 end

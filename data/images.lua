@@ -7,67 +7,24 @@ local declarations = {}
 
 local sprite
 
-sprite = {
-    type = "sprite",
-    name = prefix .. "_reset_black",
-    filename = png("images/reset_black"),
-    width = 32,
-    height = 32
-}
-table.insert(declarations, sprite)
+local function add_sprite(name)
+    sprite = {
+        type = "sprite",
+        name = prefix .. "_" .. name,
+        filename = png("images/" .. name),
+        width = 32,
+        height = 32
+    }
+    table.insert(declarations, sprite)
+end
 
-sprite = {
-    type = "sprite",
-    name = prefix .. "_reset_white",
-    filename = png("images/reset_white"),
-    width = 32,
-    height = 32
-}
-table.insert(declarations, sprite)
-
-sprite = {
-    type = "sprite",
-    name = prefix .. "_inspect_black",
-    filename = png("images/inspect_black"),
-    width = 32,
-    height = 32
-}
-table.insert(declarations, sprite)
-
-sprite = {
-    type = "sprite",
-    name = prefix .. "_inspect_white",
-    filename = png("images/inspect_white"),
-    width = 32,
-    height = 32
-}
-table.insert(declarations, sprite)
-
-sprite = {
-    type = "sprite",
-    name = prefix .. "_purge_black",
-    filename = png("images/purge_black"),
-    width = 32,
-    height = 32
-}
-table.insert(declarations, sprite)
-
-sprite = {
-    type = "sprite",
-    name = prefix .. "_purge_white",
-    filename = png("images/purge_white"),
-    width = 32,
-    height = 32
-}
-table.insert(declarations, sprite)
-
-sprite = {
-    type = "sprite",
-    name = prefix .. "_stopped",
-    filename = png("images/stopped"),
-    width = 32,
-    height = 32
-}
-table.insert(declarations, sprite)
+add_sprite("reset_black")
+add_sprite("reset_white")
+add_sprite("inspect_black")
+add_sprite("inspect_white")
+add_sprite("purge_black")
+add_sprite("purge_white")
+add_sprite("stopped")
+add_sprite("full")
 
 data:extend(declarations)

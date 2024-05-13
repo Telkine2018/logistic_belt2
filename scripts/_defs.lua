@@ -71,6 +71,8 @@
 ---@field buffer_size integer
 ---@field overflows table<integer, IOPoint>
 ---@field restrictions table<string, boolean>?
+---@field disabled_id integer
+---@field full_id integer
 
 ---@class Connection
 ---@field id integer
