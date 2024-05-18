@@ -34,6 +34,13 @@ local left_panel_names = {
 	-- ["supply-depot-chest"] = true
 }
 
+local delivery_fraction = 5
+
+---@param stack_size number
+local function stacksize_to_delivery(stack_size)
+	return math.max(math.ceil(stack_size / delivery_fraction), 1)
+end
+
 --------------------------------------------------
 
 ---@param request_flow any
@@ -498,7 +505,7 @@ local function on_request_item_changed(e)
 		local index = tools.index_of(children, e.element)
 		local stack_size = game.item_prototypes[e.element.elem_value].stack_size
 		children[index + 1].text = tostring(stack_size)
-		children[index + 2].text = tostring(math.ceil(stack_size / 2))
+		children[index + 2].text = tostring(stacksize_to_delivery(stack_size / delivery_fraction))
 	end
 	if e.element == children[count - 2] then
 		if e.element.elem_value then
@@ -881,12 +888,12 @@ local function on_shift_button1(e)
 				local req = tools.table_deep_copy(requested[item])
 				if req then
 					req.count = count
-					req.delivery = math.ceil(count / 2)
+					req.delivery = stacksize_to_delivery(count)
 				else
 					requested[item] = {
 						count = count,
 						item = item,
-						delivery = math.ceil(count / 2),
+						delivery = stacksize_to_delivery(count),
 						remaining = 0
 					}
 				end

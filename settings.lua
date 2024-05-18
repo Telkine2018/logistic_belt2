@@ -21,7 +21,8 @@ data:extend(
 			name = prefix .. "-router_inventory_size",
 			setting_type = "startup",
 			default_value = 50
-		},		{
+		},		
+		{
 			type = "bool-setting",
 			name = prefix .. "-add_filter",
 			setting_type = "startup",

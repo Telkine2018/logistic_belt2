@@ -135,7 +135,6 @@ local function process_monitored_object()
 	end
 
 	if global.update_map then
-
 		for id, parameters in pairs(global.update_map) do
 			local iopoint = context.iopoints[id]
 			if iopoint then
@@ -312,12 +311,58 @@ script.on_event(defines.events.on_robot_mined_entity, on_mined, mine_filter)
 script.on_event(defines.events.on_entity_died, on_mined, mine_filter)
 script.on_event(defines.events.script_raised_destroy, on_mined, mine_filter)
 
+---@param surface_index integer
+local function delete_all_from_surface(surface_index)
+	local context = structurelib.get_context()
+	
+	---@type IOPoint[]
+	local iopoints_to_delete = {}
+	for _, iopoint in pairs(context.iopoints) do
+		if iopoint.device.surface_index == surface_index then
+			table.insert(iopoints_to_delete, iopoint)
+		end
+	end
+
+	---@type Node[]
+	local node_to_delete = {}
+	for _, node in pairs(context.nodes) do
+		if node.container.surface_index == surface_index then
+			table.insert(node_to_delete, node)
+		end
+	end
+
+	for _, iopoint in pairs(iopoints_to_delete) do
+		structurelib.on_mined_iopoint(iopoint.device)
+	end
+
+	for _, node in pairs(node_to_delete) do
+		structurelib.delete_node(node, node.id)
+	end
+end
+
+tools.on_event(defines.events.on_pre_surface_cleared,
+	---@param e EventData.on_pre_surface_cleared
+	function(e)
+		local surface_index = e.surface_index
+
+		delete_all_from_surface(surface_index)
+	end
+)
+
+tools.on_event(defines.events.on_pre_surface_deleted,
+	---@param e EventData.on_pre_surface_deleted
+	function(e)
+		local surface_index = e.surface_index
+
+		delete_all_from_surface(surface_index)
+	end
+)
+
 --------------------------------------------
 
 ---@param device LuaEntity
 ---@param parameters UpdateDeviceParameters
 function devicelib.update_parameters(device, parameters)
-
 	---@type table<integer, UpdateDeviceParameters>
 	local update_map = global.update_map
 	if not update_map then
