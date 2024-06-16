@@ -319,6 +319,7 @@ tools.on_gui_click(np("reset"),
 			player.print({ np("reset_deleted") })
 		elseif node.disabled then
 			local count = structurelib.start_network(node)
+			locallib.add_monitored_node(node)
 			player.print({ np("reset_started"), tostring(count) })
 		else
 			local count = structurelib.stop_network(node)
