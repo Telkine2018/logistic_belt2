@@ -206,6 +206,7 @@ function structurelib.create_node(container)
     else
         node.inventory = container.get_inventory(defines.inventory.chest) --[[@as LuaInventory]]
     end
+    ---@cast id -nil
     context.nodes[id] = node
     compute_node_count(context)
     return node
@@ -307,6 +308,7 @@ function structurelib.on_mined_iopoint(entity)
     if not iopoint then return end
 
     disconnect_iopoint(iopoint)
+    ---@cast id -nil
     context.iopoints[id] = nil
 end
 
