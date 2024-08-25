@@ -1,3 +1,6 @@
+
+local migration = require("__flib__.migration")
+
 local commons = require "scripts.commons"
 local tools = require "scripts.tools"
 local locallib = require "scripts.locallib"
@@ -55,59 +58,16 @@ local function purge_content(content)
     end
 end
 
+
 ---@return Context
 function structurelib.get_context()
     if context then
         return context
     end
-
     context = global.context
     if context then
-        local to_delete = {}
-        context.node_count = table_size(context.nodes)
-        for _, node in pairs(context.nodes) do
-            node.buffer_size = node.buffer_size or config.io_buffer_size
-            for _, output in pairs(node.outputs) do
-                output.inventory.set_bar(node.buffer_size)
-            end
-            for _, input in pairs(node.inputs) do
-                input.inventory.set_bar(node.buffer_size)
-            end
-
-            if node.requested then
-                for _, request in pairs(node.requested) do
-                    if not request.delivery then
-                        request.delivery = math.ceil(request.count / 2)
-                    end
-                end
-            end
-            if not node.container.valid then
-                table.insert(to_delete, node)
-            else
-                purge_content(node.contents)
-                purge_content(node.routings)
-                purge_content(node.provided)
-                purge_content(node.requested)
-                purge_content(node.remaining)
-                purge_content(node.restrictions)
-                if node.overflows then
-                    for _, overflow in pairs(node.overflows) do
-                        purge_content(overflow.overflows)
-                    end
-                end
-            end
-        end
-        for _, node in pairs(to_delete) do
-            structurelib.delete_node(node, node.id)
-        end
-
-        compute_node_count(context)
-        if not context.clusters then
-            context.clusters = {}
-        end
         return context
     end
-
     context = {
         nodes = {},
         iopoints = {},
@@ -282,7 +242,7 @@ function structurelib.reset_node(node, clean)
         end
     end
     node.routings = nil
-    node.last_reset_tick = GAMETICK
+    node.last_reset_tick = game.tick
     node.previous = nil
     node.previous_provided = nil
     node.saturated = false
@@ -295,7 +255,7 @@ local reset_node = structurelib.reset_node
 
 ---@param node Node
 local function reset_network(node)
-    if node.last_reset_tick == GAMETICK then return end
+    if node.last_reset_tick == game.tick then return end
 
     local nodes = structurelib.get_connected_nodes(node)
     for _, n in pairs(nodes) do
@@ -750,7 +710,6 @@ end
 
 ---@param e {tick:integer}
 local function on_tick(e)
-    GAMETICK = e.tick
 
     ---@type Context
     if not context then
@@ -858,5 +817,64 @@ function structurelib.start_network(node)
     end
     return table_size(nodes)
 end
+
+
+local function general_migrations()
+
+    local context = get_context()
+
+    local to_delete = {}
+    context.node_count = table_size(context.nodes)
+    for _, node in pairs(context.nodes) do
+        node.buffer_size = node.buffer_size or config.io_buffer_size
+        for _, output in pairs(node.outputs) do
+            output.inventory.set_bar(node.buffer_size)
+        end
+        for _, input in pairs(node.inputs) do
+            input.inventory.set_bar(node.buffer_size)
+        end
+
+        if node.requested then
+            for _, request in pairs(node.requested) do
+                if not request.delivery then
+                    request.delivery = math.ceil(request.count / 2)
+                end
+            end
+        end
+        if not node.container.valid then
+            table.insert(to_delete, node)
+        else
+            purge_content(node.contents)
+            purge_content(node.routings)
+            purge_content(node.provided)
+            purge_content(node.requested)
+            purge_content(node.remaining)
+            purge_content(node.restrictions)
+            if node.overflows then
+                for _, overflow in pairs(node.overflows) do
+                    purge_content(overflow.overflows)
+                end
+            end
+        end
+    end
+    for _, node in pairs(to_delete) do
+        structurelib.delete_node(node, node.id)
+    end
+
+    compute_node_count(context)
+    if not context.clusters then
+        context.clusters = {}
+    end
+end
+
+
+local function on_configuration_changed(data)
+    general_migrations()
+end
+
+tools.on_configuration_changed(on_configuration_changed)
+tools.on_init(function() 
+    get_context()
+end)
 
 return structurelib

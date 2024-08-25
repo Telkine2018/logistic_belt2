@@ -1,5 +1,3 @@
-local migration = require("__flib__.migration")
-
 local commons = require "scripts.commons"
 local tools = require "scripts.tools"
 local locallib = require "scripts.locallib"
@@ -852,11 +850,6 @@ tools.on_event(defines.events.on_entity_settings_pasted, on_entity_settings_past
 
 --------------------------------
 
-local function on_configuration_changed(data)
-	-- migration.on_config_changed(data, migrations_table)
-end
-
-script.on_configuration_changed(on_configuration_changed)
 
 -----------------------------------------------
 
@@ -1040,5 +1033,7 @@ local function factory_organizer_install()
 end
 
 tools.on_load(factory_organizer_install)
+
+
 
 return devicegui
