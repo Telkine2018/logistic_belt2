@@ -38,6 +38,8 @@ commons.overflow_name = np("overflow")
 commons.overflow_loader_name = np("overflow-loader")
 commons.overflow_panel_name = np("overflow-panel")
 
+commons.uploader_name = np("uploader")
+
 commons.debug_mode = false
 commons.trace_inserter = false
 

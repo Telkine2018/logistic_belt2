@@ -304,7 +304,137 @@ local function create_loaders()
   }
 end
 
+local function create_uploaders()
+  local name = commons.uploader_name
+
+  local entity = table.deepcopy(data.raw["underground-belt"]["express-underground-belt"])
+  entity.type = "loader-1x1"
+  entity.name = name
+  entity.icons = nil
+  entity.flags = {
+    "placeable-neutral",
+    "player-creation",
+    "fast-replaceable-no-build-while-moving"
+  }
+  entity.localised_name = { "entity-name." .. name }
+  entity.minable = { mining_time = 0.2, result = name }
+  entity.collision_box = { { -0.26, -0.26 }, { 0.26, 0.26 } }
+  entity.collision_mask = {
+    "item-layer",
+    "object-layer",
+    "player-layer",
+    "water-tile",
+    "transport-belt-layer"
+  }
+
+  entity.selection_box = { { -0.5, -0.5 }, { 0.5, 0.5 } }
+  entity.filter_count = 0
+  entity.fast_replaceable_group = nil
+  entity.selectable_in_game = true
+
+  --entity.belt_animation_set = nil
+  entity.structure = {
+    direction_in = {
+      sheets = {
+        {
+          filename   = png("entity/uploader"),
+          width      = 96,
+          height     = 96,
+          y          = 96,
+          hr_version =
+          {
+            filename = png("entity/hr-uploader"),
+            height   = 192,
+            scale    = 0.5,
+            width    = 192,
+            y        = 192
+          }
+        },
+        -- Shadow
+        {
+          filename       = png("entity/uploader-shadow"),
+          width          = 96,
+          height         = 96,
+          y              = 96,
+          draw_as_shadow = true,
+          hr_version     =
+          {
+            filename       = png("entity/hr-uploader-shadow"),
+            height         = 192,
+            scale          = 0.5,
+            width          = 192,
+            y              = 192,
+            draw_as_shadow = true,
+          }
+        }
+      }
+    },
+    direction_out = {
+      sheets = {
+        {
+          filename   = png("entity/uploader"),
+          width      = 96,
+          height     = 96,
+          y          = 96,
+          hr_version =
+          {
+            filename = png("entity/hr-uploader"),
+            height   = 192,
+            scale    = 0.5,
+            width    = 192,
+            y        = 192
+          }
+        },
+        -- Shadow
+        {
+          filename       = png("entity/uploader-shadow"),
+          width          = 96,
+          height         = 96,
+          y              = 96,
+          draw_as_shadow = true,
+          hr_version     =
+          {
+            filename       = png("entity/hr-uploader-shadow"),
+            height         = 192,
+            scale          = 0.5,
+            width          = 192,
+            y              = 192,
+            draw_as_shadow = true,
+          }
+        }
+      }
+    },
+    back_patch = {
+      sheet = empty_sheet },
+    front_patch = {
+      sheet = empty_sheet }
+  }
+
+  entity.belt_animation_set = {
+    animation_set = {
+      filename = png('invisible'),
+      priority = "very-low",
+      width = 1,
+      height = 1,
+      frame_count = 1,
+      direction_count = 32
+    }
+  }
+
+  entity.speed = 0.25
+  entity.next_upgrade = nil
+  entity.container_distance = 1
+  entity.belt_distance = 0.5
+  entity.belt_length = 0.5
+  entity.structure_render_layer = "object"
+
+  data:extend {
+    entity
+  }
+end
+
 create_inserters()
 create_loaders()
+create_uploaders()
 
 -- log(serpent.block(data.raw["inserter"]["inserter"]))

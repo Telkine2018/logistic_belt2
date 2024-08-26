@@ -1,4 +1,3 @@
-
 local commons = require "scripts.commons"
 local tools = require "scripts.tools"
 local locallib = require "scripts.locallib"
@@ -213,6 +212,9 @@ local function on_build(entity, tags, player_index)
 		sushilib.on_build(entity, tags, player_index)
 	elseif name == commons.router_name then
 		routerlib.on_build(entity, tags)
+	elseif name == commons.uploader_name then
+		local loader = entity
+		loader.loader_type = "input"
 	elseif locallib.container_type_map[entity.type] then
 		if tags and tags.logistic_belt2_node then
 			local node = structurelib.create_node(entity)
@@ -260,6 +262,7 @@ local build_filter = tools.table_concat {
 		{ filter = 'name', name = sushi_name },
 		{ filter = 'name', name = overflow_name },
 		{ filter = 'name', name = commons.router_name },
+		{ filter = 'name', name = commons.uploader_name }
 	},
 	tools.table_imap(locallib.container_types, function(v) return { filter = 'type', type = v } end),
 	tools.table_imap(locallib.belt_types, function(v) return { filter = 'type', type = v } end)
@@ -300,7 +303,7 @@ local mine_filter = tools.table_concat {
 		{ filter = 'name', name = device_name },
 		{ filter = 'name', name = sushi_name },
 		{ filter = 'name', name = commons.overflow_name },
-		{ filter = 'name', name = commons.router_name },
+		{ filter = 'name', name = commons.router_name }
 	},
 	tools.table_imap(locallib.container_types, function(v) return { filter = 'type', type = v } end)
 }
@@ -313,7 +316,7 @@ script.on_event(defines.events.script_raised_destroy, on_mined, mine_filter)
 ---@param surface_index integer
 local function delete_all_from_surface(surface_index)
 	local context = structurelib.get_context()
-	
+
 	---@type IOPoint[]
 	local iopoints_to_delete = {}
 	for _, iopoint in pairs(context.iopoints) do

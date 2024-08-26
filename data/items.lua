@@ -9,7 +9,8 @@ local tech_effects = {
 	{ type = 'unlock-recipe', recipe = commons.device_name },
 	{ type = 'unlock-recipe', recipe = commons.sushi_name },
 	{ type = 'unlock-recipe', recipe = commons.overflow_name },
-	{ type = 'unlock-recipe', recipe = commons.router_name }
+	{ type = 'unlock-recipe', recipe = commons.router_name },
+	{ type = 'unlock-recipe', recipe = commons.uploader_name }
 }
 
 data:extend {
@@ -45,6 +46,16 @@ data:extend {
 		place_result = commons.overflow_name,
 		stack_size = 50
 	},
+	{
+		type = 'item',
+		name = commons.uploader_name,
+		icon_size = 64,
+		icon = png('item/uploader'),
+		subgroup = 'belt',
+		order = '[logistic]-a',
+		place_result = commons.uploader_name,
+		stack_size = 50
+	},
 
 	-- Recipe
 	{ type = 'recipe',
@@ -76,6 +87,16 @@ data:extend {
 			{ 'iron-gear-wheel',    2 }
 		},
 		result = commons.overflow_name
+	},
+	{ type = 'recipe',
+		name = commons.uploader_name,
+		enabled = false,
+		ingredients = {
+			{ 'electronic-circuit', 1 },
+			{ 'iron-plate',         2 },
+			{ 'iron-gear-wheel',    2 }
+		},
+		result = commons.uploader_name
 	},
 
 	-- Technology
