@@ -20,6 +20,8 @@ local changed_clusters = {}
 
 local tracing = false
 
+local router_max = settings.startup[prefix .. "-max-router-entity"].value
+
 ---@param position MapPosition
 ---@return string
 local function get_key(position)
@@ -366,6 +368,10 @@ function routerlib.on_build(entity, tags)
     changed_clusters = {}
 
     local routers, devices = routerlib.compute_cluster(entity)
+    if table_size(routers) > router_max then
+        entity.destroy()
+        return
+    end
     local cluster
     if #routers == 1 then
         local link_id = tools.get_id()
@@ -429,7 +435,6 @@ function routerlib.on_mined(ev)
 
         local force = entity.force --[[@as LuaForce]]
         if ev.player_index and config.place_items_in_inventory then
-
             local player = game.players[ev.player_index]
             local player_inv = player.get_main_inventory()
             if player_inv then

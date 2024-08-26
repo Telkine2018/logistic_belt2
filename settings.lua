@@ -27,8 +27,13 @@ data:extend(
 			name = prefix .. "-add_filter",
 			setting_type = "startup",
 			default_value = true
+		},
+		{
+			type = "int-setting",
+			name = prefix .. "-max-router-entity",
+			setting_type = "startup",
+			default_value = 6
 		}
-
 })
 
 
