@@ -115,6 +115,27 @@ data:extend {
 		},
 		order = 'a-d-d-z'
 	},
+	{ type = 'technology',
+		name = prefix .. '-router-tech',
+		icon_size = 128,
+		icon = png('router-tech-1'),
+		prerequisites = { prefix .. '-tech' },
+		unit = {
+			count_formula  = "1000 * 2^L",
+			ingredients = {
+				{"automation-science-pack", 1},
+				{"logistic-science-pack", 1},
+				{"chemical-science-pack", 1},
+				{"production-science-pack", 1},
+				{"utility-science-pack", 1}
+			},
+			time = 60
+		},
+		max_level = 5,
+		upgrade = true,
+		order = 'a-d-d-z',
+		effects = {}
+	},
 	{
 		type = "sprite",
 		name = prefix .. "-chain",

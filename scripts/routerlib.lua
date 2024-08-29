@@ -20,8 +20,6 @@ local changed_clusters = {}
 
 local tracing = false
 
-local router_max = settings.startup[prefix .. "-max-router-entity"].value
-
 ---@param position MapPosition
 ---@return string
 local function get_key(position)
@@ -368,8 +366,15 @@ function routerlib.on_build(entity, tags)
     changed_clusters = {}
 
     local routers, devices = routerlib.compute_cluster(entity)
+    local router_max = routerlib.get_router_max(entity.force)
     if table_size(routers) > router_max then
+        local position = entity.position
+        local items = entity.prototype.items_to_place_this
+        local surface = entity.surface
         entity.destroy()
+        if items and #items > 0 then
+            surface.spill_item_stack(position, { name = items[1].name, count = 1 })
+        end
         return
     end
     local cluster
@@ -483,6 +488,20 @@ function routerlib.on_mined(ev)
     end
     routerlib.reconnect_changes()
     dump_nodes()
+end
+
+local router_tech1 = prefix .. "-router-tech"
+
+---@param force LuaForce
+function routerlib.get_router_max(force)
+
+    local router_max = settings.startup[prefix .. "-max-router-entity"].value
+    local tech = force.technologies[router_tech1]
+    if not tech or not tech.enabled then
+        return router_max
+    end
+    router_max = router_max + 2 * (tech.level - 1)
+    return router_max
 end
 
 --tools.set_tracing(true)

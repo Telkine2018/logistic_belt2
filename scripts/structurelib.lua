@@ -19,10 +19,8 @@ local cdebug = tools.cdebug
 local get_vars = tools.get_vars
 local strip = tools.strip
 local get_opposite_direction = tools.get_opposite_direction
-
 local get_back = tools.get_back
 local get_front = tools.get_front
-
 local create_inserters = locallib.create_inserters
 local clear_entities = locallib.clear_entities
 
@@ -462,6 +460,11 @@ local function process_node(node)
     local changed
     ---@type table<string, integer>
     local delta
+
+    if not inventory.valid then
+        structurelib.delete_node(node, node.id)
+        return
+    end
 
     --- Compute input to node
     local remaining = node.remaining
