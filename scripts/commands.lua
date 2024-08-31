@@ -162,6 +162,34 @@ local function list_disconnected(player_index)
     end
 end
 
+local function clean()
+    local context = get_context()
+
+    local iopoint_to_remove = {}
+    for id, iopoint in pairs(context.iopoints) do
+        if not iopoint.device.valid then
+            iopoint_to_remove[id] = iopoint
+        end
+    end
+    for id, iopoint in pairs(iopoint_to_remove) do
+        structurelib.disconnect_iopoint(iopoint)
+        context.iopoints[id] = nil
+    end
+
+    local nodes_to_remove = {}
+    for id, node in pairs(context.nodes) do
+        if not node.container.valid then
+            nodes_to_remove[id] = node
+        end
+    end
+    for id, node in pairs(nodes_to_remove) do
+        structurelib.delete_node(node, id)
+    end
+    local iopoint_count = table_size(iopoint_to_remove)
+    local node_count = table_size(nodes_to_remove)
+    game.print("io points=" .. iopoint_count .. ",node count=" .. node_count)
+end
+
 
 commands.add_command("logistic_belt2_dump", { "logistic_belt2_dump" },
     ---@param command CustomCommandData
@@ -193,4 +221,10 @@ commands.add_command("logistic_belt2_disconnected", { "logistic_belt2_disconnect
 ---@param command CustomCommandData
 function(command)
     list_disconnected(command.player_index)
+end)
+
+commands.add_command("logistic_belt2_clean", { "logistic_belt2_clean" },
+---@param command CustomCommandData
+function(command)
+    clean()
 end)

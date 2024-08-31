@@ -112,7 +112,7 @@ function locallib.clear_entities(device, entity_names)
 end
 
 ---@param entity LuaEntity
----@param direction integer
+---@param direction integer | defines.direction
 ---@param positions MapPosition[][]
 ---@param count integer
 ---@param name string

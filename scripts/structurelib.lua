@@ -1,4 +1,3 @@
-
 local migration = require("__flib__.migration")
 
 local commons = require "scripts.commons"
@@ -27,6 +26,7 @@ local clear_entities = locallib.clear_entities
 local table_insert = table.insert
 
 local trace_scan
+local tracing = tools.tracing
 
 
 local structurelib = {}
@@ -100,8 +100,24 @@ local function disconnect_iopoint(iopoint)
             node.outputs[iopoint.id] = nil
 
             if node.routings then
-                for _, routing_map in pairs(node.routings) do
+                local removed_items
+                for key, routing_map in pairs(node.routings) do
                     routing_map[iopoint.id] = nil
+                    if not next(routing_map) then
+                        if not removed_items then
+                            removed_items = { key }
+                        else
+                            table.insert(removed_items, key)
+                        end
+                    end
+                end
+                if removed_items then
+                    for _, item in pairs(removed_items) do
+                        node.routings[item] = nil
+                    end
+                    if not next(node.routings) then
+                        node.routings = nil
+                    end
                 end
             end
 
@@ -245,9 +261,7 @@ function structurelib.reset_node(node, clean)
     node.previous = nil
     node.previous_provided = nil
     node.saturated = false
-    if clean then
-        node.remaining = nil
-    end
+    node.remaining = nil
 end
 
 local reset_node = structurelib.reset_node
@@ -395,7 +409,6 @@ local function insert_routing(producer, node, item, amount)
         local previous = rnode.previous
         local outputs = rnode.output_map[previous.id]
         if not outputs then
-            log("-- cancel delivery--")
             return nil
         end
         local output_count = table_size(outputs)
@@ -459,7 +472,7 @@ local function process_node(node)
     local contents
     local changed
     ---@type table<string, integer>
-    local delta
+    local input_items
 
     if not inventory.valid then
         structurelib.delete_node(node, node.id)
@@ -468,37 +481,60 @@ local function process_node(node)
 
     --- Compute input to node
     local remaining = node.remaining
-    local requested
-    if not remaining then
-        delta = {}
+    local requested = node.requested
+    local to_inventory = {}
+
+    if not remaining or node.disabled then
+        if remaining then
+            input_items = remaining
+            changed = true
+            node.remaining = nil
+        else
+            input_items = {}
+        end
         for _, input in pairs(node.inputs) do
             if not input.inventory.is_empty() then
                 local input_contents = input.inventory.get_contents()
                 for name, count in pairs(input_contents) do
-                    delta[name] = (delta[name] or 0) + count
+                    input_items[name] = (input_items[name] or 0) + count
+                    --[[
+                    if tracing then
+                        debug("[" .. node.id .. "] input " .. name .. "=" .. count)
+                    end
+                    --]]
                 end
                 input.inventory.clear()
                 changed = true
             end
         end
+    else
+        changed = true
+        input_items = remaining
+        node.remaining = nil
+    end
 
-        --- Update request
-        requested = node.requested
-        if requested then
-            for item, request in pairs(requested) do
-                local count = delta[item]
-                if count then
-                    local remaining = request.remaining - count
-                    if remaining < 0 then
-                        remaining = 0
-                    end
-                    request.remaining = remaining
+    --- Update request
+    if requested then
+        for item, request in pairs(requested) do
+            local count = input_items[item]
+            if count then
+                local remaining = request.remaining
+                --[[
+                if tracing then
+                    debug("[" .. node.id .. "] In inventory " .. item .. "=" .. count .. ",requested=" .. remaining)
+                end
+                    --]]
+                if count <= remaining then
+                    to_inventory[item] = count
+                    request.remaining = remaining - count
+                    input_items[item] = nil
+                else
+                    to_inventory[item] = remaining
+                    input_items[item] = count - remaining
+                    request.remaining = 0
                 end
             end
         end
-    else
-        changed = true
-        delta = remaining
     end
 
     contents = inventory.get_contents()
@@ -508,14 +544,15 @@ local function process_node(node)
     if node.routings then
         local to_remove_items
 
-
         changed = true
         for item, routing_map in pairs(node.routings) do
             local item_count = (contents[item] or 0)
-            local available = item_count + (delta[item] or 0)
+            local input_count = input_items[item] or 0
+            local to_inventory_count = to_inventory[item] or 0
+            local available = item_count + input_count + to_inventory_count
 
             if available > 0 then
-                local remaining_count = available
+                local remaining_available = available
                 local to_remove_routings = nil
 
                 local sum = 0
@@ -527,16 +564,16 @@ local function process_node(node)
                 local total_inserted = 0
                 for id, routing in pairs(routing_map) do
                     local amount = math.ceil(routing.remaining / sum * available)
-                    local inserted_count = amount
-                    if inserted_count > routing.remaining then
-                        inserted_count = routing.remaining
+                    local inserted_amount = amount
+                    if inserted_amount > routing.remaining then
+                        inserted_amount = routing.remaining
                     end
-                    if inserted_count > remaining_count then
-                        inserted_count = remaining_count
+                    if inserted_amount > remaining_available then
+                        inserted_amount = remaining_available
                     end
 
-                    local real_inserted = routing.output.inventory.insert { name = item, count = inserted_count }
-                    if real_inserted ~= inserted_count then
+                    local real_inserted = routing.output.inventory.insert { name = item, count = inserted_amount }
+                    if real_inserted ~= inserted_amount then
                         node.saturated = true
                     end
                     routing.remaining = routing.remaining - real_inserted
@@ -548,16 +585,24 @@ local function process_node(node)
                         end
                     end
                     total_inserted = total_inserted + real_inserted
-                    remaining_count = remaining_count - real_inserted
-                    if amount > remaining_count then
-                        amount = remaining_count
-                    end
-                    if remaining_count == 0 then
+                    remaining_available = remaining_available - real_inserted
+                    if remaining_available == 0 then
                         break
                     end
                 end
 
-                delta[item] = remaining_count - item_count
+                --[[
+                if tracing then
+                    debug("[" .. node.id .. "] Routing " .. item .. "=" .. sum .. ",available=" .. available .. ",total_inserted=" .. total_inserted)
+                end
+                    --]]
+
+                if total_inserted < input_count then
+                    input_items[item] = input_count - total_inserted
+                else
+                    input_items[item] = nil
+                    to_inventory[item] = to_inventory_count - (total_inserted - input_count)
+                end
 
                 -- Remove completed routing
                 if to_remove_routings then
@@ -601,14 +646,13 @@ local function process_node(node)
     if not node.disabled then
         if requested then
             for item, req in pairs(requested) do
-                local count = (contents[item] or 0) + (delta[item] or 0)
+                local count = (contents[item] or 0) + (to_inventory[item] or 0)
                 local needed = req.count - count - req.remaining
-                if needed > 0 then
+
+                local delivery = req.delivery or config.default_delivery
+                if needed >= delivery then
                     local to_deliver = needed
-                    local delivery = req.delivery or config.default_delivery
-                    if delivery > req.count then
-                        delivery = req.count
-                    end
+
                     ::next_delivery::
                     do
                         needed = delivery
@@ -647,7 +691,8 @@ local function process_node(node)
                 node.disabled_id = rendering.draw_sprite {
                     target = container,
                     surface = container.surface,
-                    sprite = prefix .. "_stopped" }
+                    sprite = prefix .. "_stopped",
+                    x_scale = 0.6, y_scale = 0.6, target_offset = { -0.5, 0.5 } }
             end
         end
     end
@@ -660,7 +705,7 @@ local function process_node(node)
                     local real = output.inventory.insert { name = name, count = count }
                     if real > 0 then
                         contents[name] = contents[name] - real
-                        delta[name] = -real
+                        input_items[name] = -real
                         changed = true
                     end
                     if real ~= count then
@@ -673,7 +718,7 @@ local function process_node(node)
 
     if changed then
         remaining = nil
-        for name, count in pairs(delta) do
+        for name, count in pairs(to_inventory) do
             if count > 0 then
                 local inserted = inventory.insert { name = name, count = count }
                 if inserted ~= count then
@@ -691,18 +736,63 @@ local function process_node(node)
                 end
             end
         end
-        node.remaining = remaining
+        if table_size(input_items) > 0 then
+            if not node.routings then
+                for name, count in pairs(input_items) do
+                    if count < 0 then
+                        inventory.remove { name = name, count = -count }
+                    else
+                        local inserted = inventory.insert { name = name, count = count }
+                        if inserted ~= count then
+                            if not remaining then
+                                remaining = {}
+                            end
+                            remaining[name] = count - inserted
+                        end
+                    end
+                end
+            else
+                for name, count in pairs(input_items) do
+                    if not remaining then
+                        remaining = {}
+                    end
+                    remaining[name] = (remaining[name] or 0) + count
+                end
+            end
+        end
     end
 
-    if node.remaining then
-        if not node.full_id then
-            local container = node.container
-            if container and container.valid then
-                node.full_id = rendering.draw_sprite {
-                    target = container,
-                    surface = container.surface,
-                    sprite = prefix .. "_full" }
+    if remaining then
+        if node.disabled then
+            if not node.routings then
+                for name, count in pairs(remaining) do
+                    --[[
+                    if tracing then
+                        debug("[" .. node.id .. "] remaining " .. name .. "=" .. count)
+                    end
+                                        --]]
+
+                    local inserted = inventory.insert { name = name, count = count }
+                    if inserted < count then
+                        node.container.surface.spill_item_stack(node.container.position, { name = name, count = count }, true, node.container.force)
+                    end
+                end
+                remaining = nil
             end
+            node.remaining = remaining
+        else
+            if not node.full_id then
+                local container = node.container
+                if container and container.valid then
+                    node.full_id = rendering.draw_sprite {
+                        target = container,
+                        surface = container.surface,
+                        sprite = prefix .. "_full",
+                        x_scale = 0.6, y_scale = 0.6, target_offset = { 0.5, 0.5 }
+                    }
+                end
+            end
+            node.remaining = remaining
         end
     else
         if node.full_id then
@@ -715,7 +805,6 @@ end
 
 ---@param e {tick:integer}
 local function on_tick(e)
-
     ---@type Context
     if not context then
         context = get_context()
@@ -806,7 +895,9 @@ function structurelib.stop_network(node)
     local nodes = structurelib.get_connected_nodes(node)
 
     for _, n in pairs(nodes) do
-        n.disabled = true
+        if not n.disabled then
+            n.disabled = true
+        end
     end
     return table_size(nodes)
 end
@@ -817,15 +908,15 @@ function structurelib.start_network(node)
     local nodes = structurelib.get_connected_nodes(node)
 
     for _, n in pairs(nodes) do
-        n.disabled = false
-        structurelib.reset_node(n)
+        if n.disabled then
+            n.disabled = false
+            structurelib.reset_node(n)
+        end
     end
     return table_size(nodes)
 end
 
-
 local function general_migrations()
-
     local context = get_context()
 
     local to_delete = {}
@@ -878,7 +969,7 @@ local function on_configuration_changed(data)
 end
 
 tools.on_configuration_changed(on_configuration_changed)
-tools.on_init(function() 
+tools.on_init(function()
     get_context()
 end)
 

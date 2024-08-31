@@ -421,7 +421,7 @@ local function create_uploaders()
     }
   }
 
-  entity.speed = 0.25
+  entity.speed = 0.5
   entity.next_upgrade = nil
   entity.container_distance = 1
   entity.belt_distance = 0.5

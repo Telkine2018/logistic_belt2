@@ -77,6 +77,7 @@ function overflowlib.on_built_entity(entity, tags)
 
     --- Register
     local iopoint_id = entity.unit_number
+    ---@cast iopoint_id -nil
     ---@type IOPoint
     local iopoint = {
         id = iopoint_id,
@@ -103,6 +104,7 @@ function overflowlib.on_mined(entity)
     local id = entity.unit_number
     local iopoint = context.iopoints[id]
     if not iopoint then goto __end__ end
+    ---@cast id -nil
     context.iopoints[id] = nil
     locallib.disconnect_overflow(iopoint)
 

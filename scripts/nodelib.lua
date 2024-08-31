@@ -484,7 +484,13 @@ local function create_output_objects(iopoint, loader, inserter_count)
     end
 
     local inserters = surface.find_entities_filtered { position = device.position, name = inserter_name }
-    if #inserters == 0 then
+    if #inserters ~= 2 * inserter_count then
+        if #inserters > 0 then
+            for _, inserter in pairs(inserters) do
+                inserter.destroy()
+            end
+            iopoint.inserters = nil
+        end 
         local positions = locallib.output_positions2
         inserters = create_inserters(device, get_opposite_direction(device.direction), positions[1], inserter_count, inserter_name)
     end
@@ -512,7 +518,13 @@ local function create_input_object(iopoint, loader, inserter_count)
         return nil
     end
     local inserters = surface.find_entities_filtered { position = device.position, name = inserter_name }
-    if #inserters == 0 then
+    if #inserters ~= 2 * inserter_count then
+        if #inserters > 0 then
+            for _, inserter in pairs(inserters) do
+                inserter.destroy()
+            end
+            iopoint.inserters = nil
+        end 
         local positions = locallib.input_positions2[1]
         inserters = create_inserters(device, device.direction, positions, inserter_count, inserter_name)
     end
@@ -563,6 +575,8 @@ function nodelib.build_network(devices)
         local device = device_info.device
         local iopoint_id = device_info.device.unit_number
         local loader = device_info.loader
+
+        ---@cast iopoint_id -nil
 
         local iopoint = context.iopoints[iopoint_id]
         if iopoint then
