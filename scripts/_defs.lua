@@ -93,7 +93,7 @@
 ---@field item string
 ---@field delivery integer?
 ---@field count integer             @ count of request items
----@field remaining integer
+---@field remaining integer         @ count of items currently on the way
 
 ---@class Context
 ---@field nodes table<integer, Node>

@@ -503,10 +503,12 @@ local function process_node(node)
         node.remaining = nil
     end
 
+    contents = inventory.get_contents()
+
     --- Update request
     if requested then
         for item, request in pairs(requested) do
-            local count = input_items[item]
+            local count = input_items[item] 
             if count then
                 local remaining = request.remaining
                 if count <= remaining then
@@ -522,7 +524,6 @@ local function process_node(node)
         end
     end
 
-    contents = inventory.get_contents()
 
     -- do routing
     node.saturated = false
@@ -716,8 +717,8 @@ local function process_node(node)
             end
         end
         if table_size(input_items) > 0 then
-            if not node.routings then
-                for name, count in pairs(input_items) do
+            for name, count in pairs(input_items) do
+                if (not node.routings) or (not node.routings[name]) or count < 0 then
                     if count < 0 then
                         inventory.remove { name = name, count = -count }
                     else
@@ -729,13 +730,11 @@ local function process_node(node)
                             remaining[name] = count - inserted
                         end
                     end
-                end
-            else
-                for name, count in pairs(input_items) do
+                else
                     if not remaining then
                         remaining = {}
                     end
-                    remaining[name] = (remaining[name] or 0) + count
+                    remaining[name] = count
                 end
             end
         end
@@ -896,7 +895,7 @@ end
 ---@param context Context
 function structurelib.repair(context)
     for _, iopoint in pairs(context.iopoints) do
-        if iopoint.container then
+        if iopoint.container and iopoint.container.valid then
             local containers = iopoint.device.surface.find_entities_filtered
                 { position = iopoint.container.position, name = commons.chest_name, radius = 0.5 }
             for _, c in pairs(containers) do
