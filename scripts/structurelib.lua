@@ -27,12 +27,13 @@ local table_insert = table.insert
 
 local trace_scan
 local tracing = tools.tracing
-
+local migration_done = false
 
 local structurelib = {}
 
 ---@type Context
 local context
+
 
 ---@param context Context
 local function compute_node_count(context)
@@ -64,6 +65,9 @@ function structurelib.get_context()
     end
     context = global.context
     if context then
+        if not migration_done then
+            structurelib.repair(context)
+        end
         return context
     end
     context = {
@@ -126,8 +130,6 @@ local function disconnect_iopoint(iopoint)
             end
         end
         iopoint.node = nil
-        iopoint.container = nil
-        iopoint.inventory = nil
     end
 end
 structurelib.disconnect_iopoint = disconnect_iopoint
@@ -405,6 +407,7 @@ end
 ---@return boolean?
 local function insert_routing(producer, node, item, amount)
     local rnode = producer
+
     while rnode ~= node do
         local previous = rnode.previous
         local outputs = rnode.output_map[previous.id]
@@ -447,14 +450,6 @@ local function insert_routing(producer, node, item, amount)
             end
 
             remaining = remaining - per_output
-
-            if rnode ~= producer and rnode.requested then
-                local intermediate = rnode.requested[item]
-                if intermediate then
-                    intermediate.remaining = intermediate.remaining + per_output
-                end
-            end
-
             if remaining == 0 then
                 break
             end
@@ -497,11 +492,6 @@ local function process_node(node)
                 local input_contents = input.inventory.get_contents()
                 for name, count in pairs(input_contents) do
                     input_items[name] = (input_items[name] or 0) + count
-                    --[[
-                    if tracing then
-                        debug("[" .. node.id .. "] input " .. name .. "=" .. count)
-                    end
-                    --]]
                 end
                 input.inventory.clear()
                 changed = true
@@ -519,11 +509,6 @@ local function process_node(node)
             local count = input_items[item]
             if count then
                 local remaining = request.remaining
-                --[[
-                if tracing then
-                    debug("[" .. node.id .. "] In inventory " .. item .. "=" .. count .. ",requested=" .. remaining)
-                end
-                    --]]
                 if count <= remaining then
                     to_inventory[item] = count
                     request.remaining = remaining - count
@@ -590,12 +575,6 @@ local function process_node(node)
                         break
                     end
                 end
-
-                --[[
-                if tracing then
-                    debug("[" .. node.id .. "] Routing " .. item .. "=" .. sum .. ",available=" .. available .. ",total_inserted=" .. total_inserted)
-                end
-                    --]]
 
                 if total_inserted < input_count then
                     input_items[item] = input_count - total_inserted
@@ -766,12 +745,6 @@ local function process_node(node)
         if node.disabled then
             if not node.routings then
                 for name, count in pairs(remaining) do
-                    --[[
-                    if tracing then
-                        debug("[" .. node.id .. "] remaining " .. name .. "=" .. count)
-                    end
-                                        --]]
-
                     local inserted = inventory.insert { name = name, count = count }
                     if inserted < count then
                         node.container.surface.spill_item_stack(node.container.position, { name = name, count = count }, true, node.container.force)
@@ -805,6 +778,10 @@ end
 
 ---@param e {tick:integer}
 local function on_tick(e)
+    if global.monitoring then
+        return
+    end
+
     ---@type Context
     if not context then
         context = get_context()
@@ -916,9 +893,30 @@ function structurelib.start_network(node)
     return table_size(nodes)
 end
 
-local function general_migrations()
-    local context = get_context()
+---@param context Context
+function structurelib.repair(context)
+    for _, iopoint in pairs(context.iopoints) do
+        if iopoint.container then
+            local containers = iopoint.device.surface.find_entities_filtered
+                { position = iopoint.container.position, name = commons.chest_name, radius = 0.5 }
+            for _, c in pairs(containers) do
+                if c.unit_number ~= iopoint.container.unit_number then
+                    c.destroy()
+                end
+            end
+        end
+    end
 
+    compute_node_count(context)
+    if not context.clusters then
+        context.clusters = {}
+    end
+end
+
+local function general_migrations()
+    local context = global.context
+
+    migration_done = true
     local to_delete = {}
     context.node_count = table_size(context.nodes)
     for _, node in pairs(context.nodes) do
@@ -957,12 +955,8 @@ local function general_migrations()
         structurelib.delete_node(node, node.id)
     end
 
-    compute_node_count(context)
-    if not context.clusters then
-        context.clusters = {}
-    end
+    structurelib.repair(context)
 end
-
 
 local function on_configuration_changed(data)
     general_migrations()

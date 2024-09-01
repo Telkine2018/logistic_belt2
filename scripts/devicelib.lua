@@ -21,8 +21,6 @@ local strip = tools.strip
 
 local devicelib = {}
 
-local NTICK_COUNT = 60
-
 local device_name = commons.device_name
 local inserter_name = commons.inserter_name
 local filter_name = commons.filter_name
@@ -55,7 +53,7 @@ local create_inserters = locallib.create_inserters
 local clear_entities = locallib.clear_entities
 local adjust_direction = locallib.adjust_direction
 
-local function process_monitored_object()
+local function process_parameters()
 	if global.saved_parameters ~= nil and next(global.saved_parameters) then
 		local tick = game.tick
 		if not global.saved_time then
@@ -76,36 +74,53 @@ local function process_monitored_object()
 			end
 		end
 	end
-	if not global.monitoring then return end
+end
 
-	if not global.structure_changed then
-		return
-	end
+local function process_monitored_object()
+	if not global.structure_changed and not global.monitoring then return end
 
-	global.structure_changed = false
 	local saved_tracing = tools.is_tracing()
 	tools.set_tracing(false)
-	local new_monitored_list = {}
 	local context = structurelib.get_context()
 
 	---@type table<integer, Node>
-	local nodes = {}
-	if global.monitored_devices then
-		global.monitored_devices_key = nil
-		local done_map = {}
-		while true do
-			local key, device = next(global.monitored_devices, global.monitored_devices_key)
+	local nodes = global.monitored_nodes
+	if not nodes then
+		nodes                  = {}
+		global.monitored_nodes = nodes
+	end
+
+	local monitored_new_list = global.monitored_new_list
+	if not monitored_new_list then
+		monitored_new_list = {}
+		global.monitored_new_list = monitored_new_list
+	end
+
+	local monitored_devices = global.monitored_devices
+	if monitored_devices then
+		local done_map = global.monitored_done_map
+		if not done_map then
+			done_map = {}
+			global.monitored_done_map = done_map
+		end
+
+		local key, device
+		for i = 1, 2 do
+			key, device = next(monitored_devices)
+
 			---@cast device LuaEntity
-			if key == nil then
-				break
+			if device == nil then
+				global.monitored_devices = nil
+				goto node_scan
 			end
-			global.monitored_devices_key = key
+			monitored_devices[key] = nil
+
 			if not done_map[key] then
 				if device.valid then
 					if device.name == device_name then
-						local success, is_ghost, ids = nodelib.rebuild_network(device)
+						local success, _, ids = nodelib.rebuild_network(device)
 						if not success then
-							new_monitored_list[device.unit_number] = device
+							monitored_new_list[device.unit_number] = device
 						elseif ids then
 							local iopoint = context.iopoints[device.unit_number]
 							if iopoint then
@@ -118,7 +133,7 @@ local function process_monitored_object()
 					elseif device.name == commons.overflow_name then
 						local iopoint = context.iopoints[device.unit_number]
 						if iopoint and not overflowlib.try_connect(iopoint) then
-							new_monitored_list[device.unit_number] = device
+							monitored_new_list[device.unit_number] = device
 							nodes[iopoint.id] = iopoint.node
 						else
 							done_map[device.unit_number] = true
@@ -127,7 +142,10 @@ local function process_monitored_object()
 				end
 			end
 		end
+		return
 	end
+
+	::node_scan::
 	for _, node in pairs(nodes) do
 		structurelib.reset_network(node)
 	end
@@ -165,18 +183,23 @@ local function process_monitored_object()
 		global.update_map = nil
 	end
 
-	if next(new_monitored_list) == nil then
+	if next(monitored_new_list) == nil then
 		global.monitored_devices = nil
-		global.monitored_devices_key = nil
-		global.monitoring = false
+		global.monitoring = nil
+		global.structure_changed = nil
+		global.monitored_new_list = nil
+		global.monitored_nodes = nil
+		global.monitored_done_map = nil
 		debug("STOP MONITORING")
 	else
-		global.monitored_devices = new_monitored_list
+		global.monitored_devices = monitored_new_list
 	end
 	tools.set_tracing(saved_tracing)
 end
 
-tools.on_nth_tick(NTICK_COUNT, process_monitored_object)
+tools.on_nth_tick(10, process_monitored_object)
+
+tools.on_nth_tick(60 * 60, process_parameters)
 
 ---@param device Device
 local function initialize_device(device)

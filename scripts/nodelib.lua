@@ -451,7 +451,7 @@ local function find_container(surface, position)
     local containers = surface.find_entities_filtered {
         position = position,
         type = locallib.container_types,
-        radius = 20
+        radius = 5
     }
     local found
     for _, container in pairs(containers) do
@@ -490,7 +490,7 @@ local function create_output_objects(iopoint, loader, inserter_count)
                 inserter.destroy()
             end
             iopoint.inserters = nil
-        end 
+        end
         local positions = locallib.output_positions2
         inserters = create_inserters(device, get_opposite_direction(device.direction), positions[1], inserter_count, inserter_name)
     end
@@ -524,7 +524,7 @@ local function create_input_object(iopoint, loader, inserter_count)
                 inserter.destroy()
             end
             iopoint.inserters = nil
-        end 
+        end
         local positions = locallib.input_positions2[1]
         inserters = create_inserters(device, device.direction, positions, inserter_count, inserter_name)
     end
@@ -536,11 +536,20 @@ nodelib.create_input_object = create_input_object
 
 ---@param iopoint IOPoint
 local function create_internal_container(iopoint)
+
+        
     if not iopoint.container then
+
         local device = iopoint.device
         local surface = device.surface
-        iopoint.container = surface.create_entity(
-            { position = device.position, name = commons.chest_name, force = device.force, create_build_effect_smoke = false }) --[[@as LuaEntity]]
+        local existings = surface.find_entities_filtered { position = device.position,
+            name = commons.chest_name, radius = 0.5 }
+            if #existings >= 1 then
+            iopoint.container = existings[1]
+        else
+            iopoint.container = surface.create_entity(
+                { position = device.position, name = commons.chest_name, force = device.force, create_build_effect_smoke = false }) --[[@as LuaEntity]]
+        end
         iopoint.inventory = iopoint.container.get_inventory(defines.inventory.chest) --[[@as LuaInventory]]
         iopoint.inventory.set_bar(config.io_buffer_size)
     end

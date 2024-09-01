@@ -84,7 +84,7 @@ function locallib.create_loader(master, loader_name)
 		name = loader_name,
 		position = master.position,
 		force = master.force,
-		direction = tools.get_opposite_direction(master.direction),
+		direction = tools.get_opposite_direction(master.direction) --[[@as defines.direction]],
 		create_build_effect_smoke = false
 	}
 	loader.loader_type = "output"
@@ -346,7 +346,7 @@ function locallib.adjust_direction(device)
 		return true, false
 	end
 
-	local opposite     = get_opposite_direction(direction)
+	local opposite     = get_opposite_direction(direction) --[[@as defines.direction]]
 	local opposite_pos = get_front(opposite, position)
 	entities           = device.surface.find_entities_filtered { position = opposite_pos, type = locallib.belt_types }
 	if (#entities > 0) then
