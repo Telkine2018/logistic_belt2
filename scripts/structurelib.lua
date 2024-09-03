@@ -13,6 +13,7 @@ local filter_name = commons.filter_name
 local device_loader_name = commons.device_loader_name
 local overflow_name = commons.overflow_name
 
+local tracing = tools.tracing
 local debug = tools.debug
 local cdebug = tools.cdebug
 local get_vars = tools.get_vars
@@ -22,6 +23,9 @@ local get_back = tools.get_back
 local get_front = tools.get_front
 local create_inserters = locallib.create_inserters
 local clear_entities = locallib.clear_entities
+
+--local debug_nodeids = { [1347116] = true, [1347193] = true, [1347149] = true }
+local debug_nodeids = {}
 
 local table_insert = table.insert
 
@@ -302,7 +306,6 @@ function structurelib.delete_node(node, id)
     context.nodes[id] = nil
     context.current_node_id = nil
     compute_node_count(context)
-    --debug("remove node => " .. tostring(id))
 end
 
 ---@param entity LuaEntity
@@ -449,6 +452,10 @@ local function insert_routing(producer, node, item, amount)
                 item_routes[output.id] = routing
             end
 
+            --[[             if debug_nodeids[rnode.id] then
+                debug("(" .. rnode.id .. ") routings for request: " .. item .. "=" .. routing.remaining)
+            end
+ ]]
             remaining = remaining - per_output
             if remaining == 0 then
                 break
@@ -477,7 +484,6 @@ local function process_node(node)
     --- Compute input to node
     local remaining = node.remaining
     local requested = node.requested
-    local to_inventory = {}
 
     if not remaining or node.disabled then
         if remaining then
@@ -497,6 +503,10 @@ local function process_node(node)
                 changed = true
             end
         end
+        --[[         if debug_nodeids[node.id] then
+            debug("(" .. node.id .. ") input_items=" .. tools.strip(input_items))
+        end
+ ]]
     else
         changed = true
         input_items = remaining
@@ -505,37 +515,25 @@ local function process_node(node)
 
     contents = inventory.get_contents()
 
-    --- Update request
-    if requested then
-        for item, request in pairs(requested) do
-            local count = input_items[item] 
-            if count then
-                local remaining = request.remaining
-                if count <= remaining then
-                    to_inventory[item] = count
-                    request.remaining = remaining - count
-                    input_items[item] = nil
-                else
-                    to_inventory[item] = remaining
-                    input_items[item] = count - remaining
-                    request.remaining = 0
-                end
-            end
-        end
-    end
-
 
     -- do routing
     node.saturated = false
     if node.routings then
         local to_remove_items
-
         changed = true
         for item, routing_map in pairs(node.routings) do
             local item_count = (contents[item] or 0)
+            local provided_req = node.provided and node.provided[item]
+            if provided_req then
+                if provided_req.provided < item_count then
+                    item_count = provided_req.provided
+                end
+            else
+                item_count = 0
+            end
+
             local input_count = input_items[item] or 0
-            local to_inventory_count = to_inventory[item] or 0
-            local available = item_count + input_count + to_inventory_count
+            local available = item_count + input_count
 
             if available > 0 then
                 local remaining_available = available
@@ -546,6 +544,10 @@ local function process_node(node)
                     sum = sum + routing.remaining
                 end
 
+                --[[                 if debug_nodeids[node.id] then
+                    debug("(" .. node.id .. ") routings before: " .. item .. "=" .. sum)
+                end
+ ]]
                 -- Do routing
                 local total_inserted = 0
                 for id, routing in pairs(routing_map) do
@@ -562,14 +564,16 @@ local function process_node(node)
                     if real_inserted ~= inserted_amount then
                         node.saturated = true
                     end
+
                     routing.remaining = routing.remaining - real_inserted
-                    if routing.remaining <= 0 then
+                    if routing.remaining == 0 then
                         if not to_remove_routings then
                             to_remove_routings = { id }
                         else
                             table_insert(to_remove_routings, id)
                         end
                     end
+
                     total_inserted = total_inserted + real_inserted
                     remaining_available = remaining_available - real_inserted
                     if remaining_available == 0 then
@@ -577,12 +581,11 @@ local function process_node(node)
                     end
                 end
 
-                if total_inserted < input_count then
-                    input_items[item] = input_count - total_inserted
-                else
-                    input_items[item] = nil
-                    to_inventory[item] = to_inventory_count - (total_inserted - input_count)
+                --[[                 if debug_nodeids[node.id] then
+                    debug("(" .. node.id .. ") routing after: " .. item .. "=" .. total_inserted)
                 end
+ ]]
+                input_items[item] = input_count - total_inserted
 
                 -- Remove completed routing
                 if to_remove_routings then
@@ -595,19 +598,29 @@ local function process_node(node)
                         else
                             table_insert(to_remove_items, item)
                         end
+
+                        --[[                         if debug_nodeids[node.id] then
+                            debug("(" .. node.id .. ") remove local routing")
+                        end
+ ]]
                     end
                 end
 
+                local provided_items = total_inserted - input_count
+
                 -- Remove from provided
-                if node.provided then
-                    local provided_req = node.provided[item]
-                    if provided_req then
-                        local new_provided = provided_req.provided - total_inserted
-                        if new_provided < 0 then
-                            new_provided = 0
-                        end
-                        provided_req.provided = new_provided
+                if provided_req and provided_items > 0 then
+                    local new_provided = provided_req.provided - provided_items
+                    if new_provided < 0 then
+                        new_provided = 0
+                        --- invalid case
                     end
+                    provided_req.provided = new_provided
+
+                    --[[                     if debug_nodeids[node.id] then
+                        debug("(" .. node.id .. ") remains provided=" .. tools.strip(node.provided))
+                    end
+ ]]
                 end
             end
         end
@@ -618,17 +631,56 @@ local function process_node(node)
             end
             if not next(node.routings) then
                 node.routings = nil
+
+                --[[                 if debug_nodeids[node.id] then
+                    debug("(" .. node.id .. ") remove global routing")
+                end
+ ]]
             end
         end
+    end
+
+    --- Update request
+    local to_inventory = {}
+    if requested then
+        for item, request in pairs(requested) do
+            local count = input_items[item]
+            if count and count > 0 then
+                local remaining = request.remaining
+                if count <= remaining then
+                    to_inventory[item] = count
+                    request.remaining = remaining - count
+                    input_items[item] = nil
+                else
+                    to_inventory[item] = remaining
+                    input_items[item] = count - remaining
+                    request.remaining = 0
+                end
+            end
+        end
+
+        --[[         if debug_nodeids[node.id] then
+            debug("(" .. node.id .. ") to_inventory=" .. tools.strip(to_inventory))
+        end
+ ]]
     end
 
     -- process request
     if not node.disabled then
         if requested then
             for item, req in pairs(requested) do
-                local count = (contents[item] or 0) + (to_inventory[item] or 0)
+                local count = to_inventory[item]
+                if not count or count < 0 then
+                    count = 0
+                end
+                count = (contents[item] or 0) + count
                 local needed = req.count - count - req.remaining
 
+                --[[                 if debug_nodeids[node.id] then
+                    debug("(" .. node.id .. ") request prepare: req.count=" .. req.count ..
+                        ",count=" .. count .. ", req.remaining=" .. req.remaining .. ",needed=" .. needed)
+                end
+ ]]
                 local delivery = req.delivery or config.default_delivery
                 if needed >= delivery then
                     local to_deliver = needed
@@ -654,6 +706,11 @@ local function process_node(node)
                             if to_deliver > 0 then
                                 goto next_delivery
                             end
+
+                            --[[                             if debug_nodeids[node.id] then
+                                debug("(" .. node.id .. ") request=" .. tools.strip(req))
+                            end
+ ]]
                         end
                     end
                 end
@@ -698,30 +755,43 @@ local function process_node(node)
 
     if changed then
         remaining = nil
+
+        --[[         if debug_nodeids[node.id] then
+            debug("(" .. node.id .. ") remains to_inventory=" .. tools.strip(to_inventory))
+        end
+ ]]
         for name, count in pairs(to_inventory) do
             if count > 0 then
                 local inserted = inventory.insert { name = name, count = count }
+                contents[name] = (contents[name] or 0) + inserted
                 if inserted ~= count then
                     if not remaining then
                         remaining = {}
                     end
                     remaining[name] = count - inserted
                 end
-                contents[name] = (contents[name] or 0) + count
             elseif count < 0 then
-                inventory.remove { name = name, count = -count }
-                contents[name] = (contents[name] or 0) + count
+                local removed = inventory.remove { name = name, count = -count }
+                contents[name] = (contents[name] or 0) - removed
                 if contents[name] < 0 then
                     contents[name] = 0
                 end
             end
         end
         if table_size(input_items) > 0 then
+            --[[             if debug_nodeids[node.id] then
+                debug("(" .. node.id .. ") remains input_items=" .. tools.strip(input_items))
+            end
+ ]]
             for name, count in pairs(input_items) do
                 if (not node.routings) or (not node.routings[name]) or count < 0 then
                     if count < 0 then
-                        inventory.remove { name = name, count = -count }
-                    else
+                        count = -count
+                        local real = inventory.remove { name = name, count = count }
+                        if real ~= count then
+                            log("---> invalid remove: " .. count .. " => " .. real)
+                        end
+                    elseif count > 0 then
                         local inserted = inventory.insert { name = name, count = count }
                         if inserted ~= count then
                             if not remaining then
@@ -730,7 +800,7 @@ local function process_node(node)
                             remaining[name] = count - inserted
                         end
                     end
-                else
+                elseif count > 0 then
                     if not remaining then
                         remaining = {}
                     end

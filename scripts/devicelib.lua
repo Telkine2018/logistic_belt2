@@ -142,6 +142,7 @@ local function process_monitored_object()
 				end
 			end
 		end
+		tools.set_tracing(saved_tracing)
 		return
 	end
 
