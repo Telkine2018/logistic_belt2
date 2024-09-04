@@ -789,9 +789,10 @@ local function process_node(node)
                         count = -count
                         local real = inventory.remove { name = name, count = count }
                         if real ~= count then
-                            log("---> invalid remove: " .. count .. " => " .. real)
+                            log("---> invalid remove: nodeid=" .. node.id .. ",item=" .. name .. "," .. count .. " => " .. real)
                         end
                     elseif count > 0 then
+                        log("---> input remains: nodeid=" .. node.id .. ",item=" .. name .. "," .. count)
                         local inserted = inventory.insert { name = name, count = count }
                         if inserted ~= count then
                             if not remaining then
