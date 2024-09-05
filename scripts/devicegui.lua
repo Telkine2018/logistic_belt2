@@ -831,8 +831,59 @@ local function on_entity_settings_pasted(e)
 	local ndst = structurelib.get_node(dst)
 
 	if nsrc and ndst then
-		ndst.requested = tools.table_deep_copy(nsrc.requested)
-		ndst.provided = tools.table_deep_copy(nsrc.provided)
+		if nsrc.requested then
+			if not ndst.requested then ndst.requested = {} end
+			for item, reqsrc in pairs(nsrc.requested) do
+				local reqdst = ndst.requested[item]
+				if reqdst then
+					reqdst.count = reqsrc.count
+					reqdst.delivery = reqsrc.delivery
+				else
+					reqdst = {
+						count = reqsrc.count,
+						delivery = reqsrc.delivery,
+						remaining = 0,
+						item = item
+					}
+					ndst.requested[item] = reqdst
+				end
+			end
+			local to_delete = {}
+			for item, _ in pairs(ndst.requested) do
+				if not nsrc.requested[item] then
+					table.insert(to_delete, item)
+				end
+			end
+			for _, item in pairs(to_delete) do
+				ndst.requested[item] = nil
+			end
+		else
+			ndst.requested = nil
+		end
+		if nsrc.provided then
+			if not ndst.provided then ndst.provided = {} end
+			for item, _ in pairs(nsrc.provided) do
+				local pdst = ndst.provided[item]
+				if not pdst then
+					pdst = {
+						item = item,
+						provided = 0
+					}
+					ndst.provided[item] = pdst
+				end
+			end
+			local to_delete = {}
+			for item, _ in pairs(ndst.provided) do
+				if not nsrc.provided[item] then
+					table.insert(to_delete, item)
+				end
+			end
+			for _, item in pairs(to_delete) do
+				ndst.provided[item] = nil
+			end
+		else
+			ndst.provided = nil
+		end
 		ndst.restrictions = tools.table_dup(nsrc.restrictions)
 	elseif src.name == sushi_name and dst.name == sushi_name then
 		sushilib.do_paste(src, dst, e)
