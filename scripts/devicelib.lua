@@ -97,6 +97,13 @@ local function process_monitored_object()
 	end
 
 	local monitored_devices = global.monitored_devices
+
+	local monitored_err_ids = global.monitored_err_ids 
+	if not monitored_err_ids then
+		monitored_err_ids = {}
+		global.monitored_err_ids = monitored_err_ids
+	end
+
 	if monitored_devices then
 		local done_map = global.monitored_done_map
 		if not done_map then
@@ -128,6 +135,10 @@ local function process_monitored_object()
 							end
 							for _, id in pairs(ids) do
 								done_map[id] = true
+								if monitored_err_ids[id]  then
+									rendering.destroy(monitored_err_ids[id])
+									monitored_err_ids[id] = nil
+								end
 							end
 						end
 					elseif device.name == commons.overflow_name then
@@ -143,7 +154,9 @@ local function process_monitored_object()
 			end
 		end
 		tools.set_tracing(saved_tracing)
-		return
+		if next(monitored_devices) then
+			return
+		end
 	end
 
 	::node_scan::
@@ -184,17 +197,24 @@ local function process_monitored_object()
 		global.update_map = nil
 	end
 
-	if next(monitored_new_list) == nil then
-		global.monitored_devices = nil
-		global.monitoring = nil
-		global.structure_changed = nil
-		global.monitored_new_list = nil
-		global.monitored_nodes = nil
-		global.monitored_done_map = nil
-		debug("STOP MONITORING")
-	else
-		global.monitored_devices = monitored_new_list
+	global.structure_changed = nil
+	global.monitoring = nil
+	global.monitored_devices = monitored_new_list
+	global.monitored_new_list = nil
+	global.monitored_nodes = nil
+	global.monitored_done_map = nil
+	if next(monitored_new_list) then
+		for id, device in pairs(monitored_new_list) do
+			if not monitored_err_ids[id] and device.valid then
+				monitored_err_ids[id] = rendering.draw_sprite {
+					target = device,
+					surface = device.surface,
+					sprite = prefix .. "_error",
+					x_scale = 0.6, y_scale = 0.6, target_offset = { -0.2, 0.2 } }
+			end
+		end
 	end
+	debug("STOP MONITORING")
 	tools.set_tracing(saved_tracing)
 end
 
@@ -249,6 +269,7 @@ local function on_build(entity, tags, player_index)
 		locallib.recompute_container(entity)
 	else
 		locallib.recompute_container(entity)
+		locallib.add_device_in_range(entity.surface, entity.position)
 	end
 end
 
@@ -298,7 +319,9 @@ tools.on_event(defines.events.script_raised_built, on_script_built, build_filter
 tools.on_event(defines.events.script_raised_revive, on_script_revive)
 
 
+
 local function on_mined(ev)
+	---@type LuaEntity
 	local entity = ev.entity
 	if not entity.valid then return end
 
@@ -315,6 +338,8 @@ local function on_mined(ev)
 		overflowlib.on_mined(entity)
 	elseif locallib.container_type_map[entity.type] then
 		structurelib.on_mined_container(entity)
+	else
+		locallib.add_device_in_range(entity.surface, entity.position, true)
 	end
 end
 
@@ -329,7 +354,8 @@ local mine_filter = tools.table_concat {
 		{ filter = 'name', name = commons.overflow_name },
 		{ filter = 'name', name = commons.router_name }
 	},
-	tools.table_imap(locallib.container_types, function(v) return { filter = 'type', type = v } end)
+	tools.table_imap(locallib.container_types, function(v) return { filter = 'type', type = v } end),
+	tools.table_imap(locallib.belt_types, function(v) return { filter = 'type', type = v } end)
 }
 
 script.on_event(defines.events.on_player_mined_entity, on_player_mined_entity, mine_filter)

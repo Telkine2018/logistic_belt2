@@ -289,14 +289,42 @@ function locallib.get_parameters(master, create)
 end
 
 ---@param device LuaEntity
-function locallib.add_monitored_device(device)
+---@param add_neighbors boolean?
+function locallib.add_monitored_device(device, add_neighbors)
 	if not global.monitored_devices then
 		global.monitored_devices = {}
 	end
 	global.monitored_devices[device.unit_number] = device
-	debug("ADD Monitored device: " .. tools.strip(device.position))
+	if tools.tracing then
+		debug("ADD Monitored device: " .. tools.strip(device.position))
+	end
+	if add_neighbors then
+		local context = locallib.get_context()
+		local iopoint = context.iopoints[device.unit_number]
+		if iopoint then
+			for _, other in pairs(iopoint.connection.inputs) do
+				global.monitored_devices[other.id] =  other.device
+			end
+			for _, other in pairs(iopoint.connection.outputs) do
+				global.monitored_devices[other.id] =  other.device
+			end
+		end
+	end
 	global.monitoring = true
 	global.structure_changed = true
+end
+
+local add_monitored_device = locallib.add_monitored_device
+
+---@param surface LuaSurface
+---@param position MapPosition
+---@param add_neighbors boolean?
+function locallib.add_device_in_range(surface, position, add_neighbors)
+	local entities = surface.find_entities_filtered{position=position, name=commons.device_name, radius=6}
+	if #entities == 0 then return end
+	for _, entity in pairs(entities) do
+		add_monitored_device(entity, add_neighbors)
+	end
 end
 
 ---@param iopoints table<int, IOPoint>
@@ -316,8 +344,8 @@ end
 ---@param container LuaEntity
 function locallib.recompute_container(container)
 	local pos = container.position
-	local w = container.tile_width / 2 + 1
-	local h = container.tile_height / 2 + 1
+	local w = container.tile_width / 2 + 3
+	local h = container.tile_height / 2 + 3
 
 	local search_box = { { pos.x - w, pos.y - h }, { pos.x + w, pos.y + h } }
 	local devices = container.surface.find_entities_filtered { name = { commons.device_name, commons.overflow_name }, area = search_box }

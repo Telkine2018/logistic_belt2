@@ -26,5 +26,6 @@ add_sprite("purge_black")
 add_sprite("purge_white")
 add_sprite("stopped")
 add_sprite("full")
+add_sprite("error")
 
 data:extend(declarations)

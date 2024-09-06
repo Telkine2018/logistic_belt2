@@ -251,7 +251,9 @@ local function scan_network(device)
 
     local belt = entities[1]
 
-    debug("device: " .. strip(device.position))
+    if tools.tracing then
+        debug("device: " .. strip(device.position))
+    end
 
     ---@type table<integer, LuaEntity>
     local to_scan = { [belt.unit_number] = belt }
@@ -265,7 +267,9 @@ local function scan_network(device)
     ---@return boolean
     local function add_to_scan(b, output)
         if b.name == device_loader_name then
-            debug("Scan loader: " .. strip(b.position) .. ",direction=" .. b.direction)
+            if tools.tracing then
+                debug("Scan loader: " .. strip(b.position) .. ",direction=" .. b.direction)
+            end
             loaders[b.unit_number] = { loader = b, output = output }
             return false
         end
@@ -371,20 +375,26 @@ local function build_device_list(loaders, player)
         local loader = l.loader
         local position = loader.position
 
-        debug("==> End: " .. loader.name .. ",pos=" .. strip(position))
+        if tools.tracing then
+            debug("==> End: " .. loader.name .. ",pos=" .. strip(position))
+        end
 
         local device_list = loader.surface.find_entities_filtered { position = position, name = { device_name, overflow_name } }
         if #device_list > 0 then
             local device = device_list[1]
             local search_pos = get_front(device.direction, device.position)
-            debug("SearchPOS:" .. strip(search_pos))
-            debug("Device: " ..
-                device.name ..
-                ",pos=" .. strip(device.position) .. ",direction=" .. device.direction .. ",output=" .. tostring(l.output))
+            if tools.tracing then
+                debug("SearchPOS:" .. strip(search_pos))
+                debug("Device: " ..
+                    device.name ..
+                    ",pos=" .. strip(device.position) .. ",direction=" .. device.direction .. ",output=" .. tostring(l.output))
+            end
 
             local belts = loader.surface.find_entities_filtered { type = locallib.belt_types, position = search_pos }
             if #belts == 0 then
-                debug("Cannot find belt")
+                if tools.tracing then
+                    debug("Cannot find belt")
+                end
                 return nil
             end
 
@@ -406,7 +416,9 @@ local function build_device_list(loaders, player)
     end
 
     if not has_input then
-        debug("missing input")
+        if tools.tracing then
+            debug("missing input")
+        end
         if player then
             player.print({ "message.missing_input" })
         end
@@ -414,7 +426,9 @@ local function build_device_list(loaders, player)
     end
 
     if not has_output then
-        debug("missing output")
+        if tools.tracing then
+            debug("missing output")
+        end
         if player then
             player.print({ "message.missing_output" })
         end
@@ -536,15 +550,12 @@ nodelib.create_input_object = create_input_object
 
 ---@param iopoint IOPoint
 local function create_internal_container(iopoint)
-
-        
     if not iopoint.container then
-
         local device = iopoint.device
         local surface = device.surface
         local existings = surface.find_entities_filtered { position = device.position,
             name = commons.chest_name, radius = 0.5 }
-            if #existings >= 1 then
+        if #existings >= 1 then
             iopoint.container = existings[1]
         else
             iopoint.container = surface.create_entity(
