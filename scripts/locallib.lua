@@ -312,6 +312,7 @@ function locallib.add_monitored_device(device, add_neighbors)
 	end
 	global.monitoring = true
 	global.structure_changed = true
+	global.monitored_delay = nil
 end
 
 local add_monitored_device = locallib.add_monitored_device
@@ -425,5 +426,25 @@ function locallib.get_belt_speed(entity)
 		return entities[1].prototype.belt_speed
 	end
 end
+
+---@param node Node
+function locallib.update_buffer_size(node)
+    local buffer_size = node.buffer_size
+    if node.outputs then
+        for _, output in pairs(node.outputs) do
+            if output.inventory and output.inventory.valid then
+                output.inventory.set_bar(buffer_size)
+            end
+        end
+    end
+    if node.inputs then
+        for _, input in pairs(node.inputs) do
+            if input.inventory and input.inventory.valid then
+                input.inventory.set_bar(buffer_size)
+            end
+        end
+    end
+end
+
 
 return locallib

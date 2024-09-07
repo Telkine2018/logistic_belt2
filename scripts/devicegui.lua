@@ -361,20 +361,7 @@ tools.on_named_event(np("io_buffer_size"), defines.events.on_gui_value_changed,
 		local node = vars.selected_node
 
 		node.buffer_size = buffer_size
-		if node.outputs then
-			for _, output in pairs(node.outputs) do
-				if output.inventory and output.inventory.valid then
-					output.inventory.set_bar(buffer_size)
-				end
-			end
-		end
-		if node.inputs then
-			for _, input in pairs(node.inputs) do
-				if input.inventory and input.inventory.valid then
-					input.inventory.set_bar(buffer_size)
-				end
-			end
-		end
+		locallib.update_buffer_size(node)
 	end)
 
 ---@param player LuaPlayer
@@ -615,6 +602,7 @@ local function register_mapping(bp, mapping, surface)
 							provided = node and dup_request(node.provided) --[[@as table]],
 							requested = node and dup_request(node.requested) --[[@as table]],
 							restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
+							buffer_size = node and node.buffer_size
 						})
 					end
 				elseif locallib.container_type_map[entity.type] then
@@ -625,6 +613,7 @@ local function register_mapping(bp, mapping, surface)
 							provided = dup_request(node.provided) --[[@as table]],
 							requested = dup_request(node.requested) --[[@as table]],
 							restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
+							buffer_size = node and node.buffer_size
 						})
 					end
 				elseif name == sushi_name then

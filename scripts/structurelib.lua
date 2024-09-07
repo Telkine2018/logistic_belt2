@@ -18,11 +18,6 @@ local debug = tools.debug
 local cdebug = tools.cdebug
 local get_vars = tools.get_vars
 local strip = tools.strip
-local get_opposite_direction = tools.get_opposite_direction
-local get_back = tools.get_back
-local get_front = tools.get_front
-local create_inserters = locallib.create_inserters
-local clear_entities = locallib.clear_entities
 
 --local debug_nodeids = { [1347116] = true, [1347193] = true, [1347149] = true }
 local debug_nodeids = {}

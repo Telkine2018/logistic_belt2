@@ -17,15 +17,11 @@ local cdebug = tools.cdebug
 local get_vars = tools.get_vars
 local strip = tools.strip
 local get_opposite_direction = tools.get_opposite_direction
-
 local get_back = tools.get_back
 local get_front = tools.get_front
-
 local create_inserters = locallib.create_inserters
 local clear_entities = locallib.clear_entities
-
 local table_insert = table.insert
-
 local get_context = structurelib.get_context
 
 local trace_scan
@@ -644,6 +640,9 @@ function nodelib.build_network(devices)
                 node.outputs[iopoint_id] = iopoint
             else
                 node.inputs[iopoint_id] = iopoint
+            end
+            if node.buffer_size then
+                iopoint.inventory.set_bar(node.buffer_size)
             end
         end
         ::_next::

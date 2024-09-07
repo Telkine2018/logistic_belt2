@@ -79,6 +79,15 @@ end
 local function process_monitored_object()
 	if not global.structure_changed and not global.monitoring then return end
 
+	if not global.monitored_delay then
+		global.monitored_delay = 12
+		return
+	end
+	global.monitored_delay = global.monitored_delay - 1
+	if global.monitored_delay > 0 then
+		return
+	end
+
 	local saved_tracing = tools.is_tracing()
 	tools.set_tracing(false)
 	local context = structurelib.get_context()
@@ -265,6 +274,7 @@ local function on_build(entity, tags, player_index)
 			node.requested = tags.requested --[[@as table<string, RequestedItem> ]]
 			node.provided = tags.provided --[[@as table<string, ProvidedItem> ]]
 			node.restrictions = tags.restrictions --[[@as table<string, boolean> ]]
+			node.buffer_size = tags.buffer_size or 4 --[[@as integer ]]
 		end
 		locallib.recompute_container(entity)
 	else

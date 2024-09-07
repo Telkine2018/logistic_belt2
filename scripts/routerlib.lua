@@ -413,6 +413,10 @@ function routerlib.on_build(entity, tags)
         if tags.restrictions then
             node.restrictions = tags.restrictions --[[@as table<string, boolean> ]]
         end
+        if tags.buffer_size then
+            node.buffer_size = tags.buffer_size --[[@as integer]]
+            locallib.update_buffer_size(node)
+        end
     end
     routerlib.reconnect_changes()
 end
