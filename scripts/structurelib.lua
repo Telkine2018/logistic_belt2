@@ -260,7 +260,6 @@ function structurelib.reset_node(node, clean)
     node.routings = nil
     node.last_reset_tick = game.tick
     node.previous = nil
-    node.previous_provided = nil
     node.saturated = false
     node.remaining = nil
 end
@@ -348,10 +347,8 @@ local function find_producer(node, req, amount)
     ---@type number
     local found_provided_value
 
-    node.previous_provided = 0
     while index <= count do
         local current = nodes_to_parse[index]
-        local previous_provided = current.previous_provided
         index = index + 1
         if current.restrictions and not current.restrictions[item] then
             if not (current.provided and current.provided[item]) then
@@ -369,20 +366,41 @@ local function find_producer(node, req, amount)
                     if not parsed_nodes[id] then
                         parsed_nodes[id] = true
                         test_node.previous = current
-                        test_node.previous_provided = previous_provided
 
-                        if test_node.provided and not test_node.saturated then
-                            local provided_item = test_node.provided[item]
-                            if provided_item then
-                                local available = (test_node.contents[item] or 0) - provided_item.provided
+                        if not test_node.saturated then
+                            ---@type ProvidedItem
+                            local provided_item
+                            if test_node.provided then
+                                provided_item = test_node.provided[item]
+                                if provided_item then
+                                    local available = (test_node.contents[item] or 0) - provided_item.provided
+                                    if available >= amount then
+                                        if found_provided_value and found_provided_value <= provided_item.provided then
+                                            goto skip
+                                        end
+                                        found_node = test_node
+                                        found_provided = provided_item
+                                        found_available = available
+                                        found_provided_value = provided_item.provided
+                                    end
+                                end
+                            end
+                            if not provided_item and test_node.auto_provide then
+                                local available = (test_node.contents[item] or 0)
                                 if available >= amount then
-                                    if found_provided and found_provided_value <= provided_item.provided + previous_provided then
-                                        goto skip
+                                    provided_item = {
+                                        item = item,
+                                        provided = 0
+                                    }
+                                    if not test_node.provided then
+                                        test_node.provided = { [item] = provided_item }
+                                    else
+                                        test_node.provided[item] = provided_item
                                     end
                                     found_node = test_node
                                     found_provided = provided_item
                                     found_available = available
-                                    found_provided_value = provided_item.provided + previous_provided
+                                    found_provided_value = 0
                                 end
                             end
                         end

@@ -38,7 +38,6 @@ function nodelib.get_stock(node)
     local nodes_to_parse = { node }
     local index = 1
 
-    node.previous_provided = 0
     local contents = {}
     while index <= #nodes_to_parse do
         local current = nodes_to_parse[index]
@@ -78,7 +77,6 @@ function nodelib.get_requests(node, all, include_source)
     local nodes_to_parse = { node }
     local index = 1
 
-    node.previous_provided = 0
     local contents = {}
     while index <= #nodes_to_parse do
         local current = nodes_to_parse[index]
@@ -123,7 +121,6 @@ function nodelib.purge(node)
     local nodes_to_parse = { node }
     local index = 1
 
-    node.previous_provided = 0
     local contents = node.contents
     if node.requested then
         for _, request in pairs(node.requested) do

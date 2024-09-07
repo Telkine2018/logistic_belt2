@@ -229,7 +229,17 @@ function devicegui.open(player, entity)
 
 	line = inner_frame.add { type = "line" }
 	line.style.top_margin = 10
-	inner_frame.add { type = "label", caption = { np("provide-label") } }
+
+	local flow = inner_frame.add {type="flow"}
+	flow.add { type = "label", caption = { np("provide-label") } }
+	local field = flow.add { 
+		type = "checkbox", 
+		caption = { np("auto-provide-label") }, 
+		name = np("auto-provide"), 
+		tooltip = { np("auto-provide-tooltip") }, 
+		state = not not node.auto_provide }
+	field.style.left_margin = 10
+
 	local provide_flow = inner_frame.add {
 		type = "table",
 		style_mods = { margin = 10 },
@@ -398,6 +408,10 @@ local function save_node_parameters(player)
 			index = index + 3
 		end
 	end
+
+	local autoprovide = tools.get_child(frame, np("auto-provide"))
+	---@cast autoprovide -nil
+	selected_node.auto_provide = autoprovide.state
 
 	local provide_table = tools.get_child(frame, np("provide_table"))
 	if provide_table ~= nil then

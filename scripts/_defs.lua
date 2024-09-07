@@ -59,7 +59,6 @@
 ---@field routings table<string, table<integer,Routing>>?           @ item => (id routing => routing)
 ---@field previous Node                                             @ link for searching provider
 ---@field next Node                                                 @ link for searching requester
----@field previous_provided number                                  @ inherited available
 ---@field output_map table<integer, IOPoint[]>                      @ map (node) => [output to node]
 ---@field provided table<string, ProvidedItem>                      @ item => threshold
 ---@field requested table<string, RequestedItem>                    @ item => requested items
@@ -73,6 +72,7 @@
 ---@field restrictions table<string, boolean>?
 ---@field disabled_id integer
 ---@field full_id integer
+---@field auto_provide boolean?
 
 ---@class Connection
 ---@field id integer
