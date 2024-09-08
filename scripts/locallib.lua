@@ -313,6 +313,8 @@ function locallib.add_monitored_device(device, add_neighbors)
 	global.monitoring = true
 	global.structure_changed = true
 	global.monitored_delay = nil
+	local context = locallib.get_context()
+	context.structure_tick = game.tick
 end
 
 local add_monitored_device = locallib.add_monitored_device

@@ -330,12 +330,42 @@ end
 ---@return ProvidedItem?
 ---@return integer?
 local function find_producer(node, req, amount)
+    local tick = game.tick
+    local item = req.item
+
+    if req.last_provider_node then
+        local structure_tick = context.structure_tick or 0
+        if req.last_provider_tick >= structure_tick and tick < req.last_provider_tick + 600 then
+            local test_node = context.nodes[req.last_provider_node]
+            if test_node then
+                local provided_item = test_node.provided[item]
+                local available = (test_node.contents[item] or 0) - provided_item.provided
+                if available >= amount then
+                    local last_routings = req.last_routings
+                    ---@cast last_routings -nil
+
+                    local current = test_node
+                    for _, nodeid in pairs(last_routings) do
+                        local pnode = context.nodes[nodeid]
+                        if not pnode then
+                            goto skip
+                        end
+                        current.previous = pnode
+                        current = pnode
+                    end
+                    return test_node, provided_item, available
+                end
+            end
+        end
+    end
+
+    ::skip::
+
     ---@type table<integer, boolean>
     local parsed_nodes = { [node.id] = true }
     ---@type Node[]
     local nodes_to_parse = { node }
 
-    local item = req.item
     local index = 1
     local count = 1
     ---@type Node?
@@ -346,6 +376,8 @@ local function find_producer(node, req, amount)
     local found_available
     ---@type number
     local found_provided_value
+    ---@type integer
+    local found_priority
 
     while index <= count do
         local current = nodes_to_parse[index]
@@ -370,18 +402,26 @@ local function find_producer(node, req, amount)
                         if not test_node.saturated then
                             ---@type ProvidedItem
                             local provided_item
+                            local priority = test_node.priority or 0
                             if test_node.provided then
                                 provided_item = test_node.provided[item]
                                 if provided_item then
                                     local available = (test_node.contents[item] or 0) - provided_item.provided
                                     if available >= amount then
-                                        if found_provided_value and found_provided_value <= provided_item.provided then
-                                            goto skip
+                                        if found_priority then
+                                            if found_priority > priority then
+                                                goto skip
+                                            elseif found_priority == priority then
+                                                if found_provided_value and found_provided_value <= provided_item.provided then
+                                                    goto skip
+                                                end
+                                            end
                                         end
                                         found_node = test_node
                                         found_provided = provided_item
                                         found_available = available
                                         found_provided_value = provided_item.provided
+                                        found_priority = priority
                                     end
                                 end
                             end
@@ -392,6 +432,9 @@ local function find_producer(node, req, amount)
                                         item = item,
                                         provided = 0
                                     }
+                                    if found_priority and found_priority >= priority then
+                                        goto skip
+                                    end
                                     if not test_node.provided then
                                         test_node.provided = { [item] = provided_item }
                                     else
@@ -401,6 +444,7 @@ local function find_producer(node, req, amount)
                                     found_provided = provided_item
                                     found_available = available
                                     found_provided_value = 0
+                                    found_priority = priority
                                 end
                             end
                         end
@@ -413,6 +457,27 @@ local function find_producer(node, req, amount)
         end
         ::skip_node::
     end
+
+    if config.use_cache then
+        if found_node then
+            req.last_provider_node = found_node.id
+            req.last_provider_tick = tick
+            local last_routings = {}
+
+            local current = found_node.previous
+            while (true) do
+                table.insert(last_routings, current.id)
+                if current == node then break end
+                current = current.previous
+            end
+
+            req.last_routings = last_routings
+        else
+            req.last_provider_node = nil
+            req.last_routings = nil
+        end
+    end
+
     return found_node, found_provided, found_available
 end
 

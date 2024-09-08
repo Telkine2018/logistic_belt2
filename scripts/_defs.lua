@@ -92,8 +92,11 @@
 ---@class RequestedItem
 ---@field item string
 ---@field delivery integer?
----@field count integer             @ count of request items
----@field remaining integer         @ count of items currently on the way
+---@field count integer                 @ count of request items
+---@field remaining integer             @ count of items currently on the way
+---@field last_provider_node integer?   @ Last providing node
+---@field last_provider_tick integer?   @ Last date dof providing node
+---@field last_routings integer[]?      @ Last date dof providing node
 
 ---@class Context
 ---@field nodes table<integer, Node>
@@ -103,3 +106,4 @@
 ---@field node_index number
 ---@field node_per_tick number
 ---@field current_node_id  integer?
+---@field structure_tick integer?

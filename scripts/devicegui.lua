@@ -208,6 +208,12 @@ function devicegui.open(player, entity)
 		value_step = 1,
 		discrete_slider = true }
 
+	local flow = inner_frame.add { type = "flow", direction = "horizontal" }
+	label = flow.add { type = "label", caption = { np("priority") } }
+	local field = flow.add { type = "textfield", numeric = true, text = node.priority and tostring(node.priority) or "", name = np("priority") }
+	field.style.width = 40
+	flow.style.top_margin = 5
+
 	local line = inner_frame.add { type = "line" }
 	line.style.top_margin = 10
 	inner_frame.add { type = "label", caption = { np("request-label") } }
@@ -230,13 +236,13 @@ function devicegui.open(player, entity)
 	line = inner_frame.add { type = "line" }
 	line.style.top_margin = 10
 
-	local flow = inner_frame.add {type="flow"}
+	local flow = inner_frame.add { type = "flow" }
 	flow.add { type = "label", caption = { np("provide-label") } }
-	local field = flow.add { 
-		type = "checkbox", 
-		caption = { np("auto-provide-label") }, 
-		name = np("auto-provide"), 
-		tooltip = { np("auto-provide-tooltip") }, 
+	local field = flow.add {
+		type = "checkbox",
+		caption = { np("auto-provide-label") },
+		name = np("auto-provide"),
+		tooltip = { np("auto-provide-tooltip") },
 		state = not not node.auto_provide }
 	field.style.left_margin = 10
 
@@ -412,6 +418,11 @@ local function save_node_parameters(player)
 	local autoprovide = tools.get_child(frame, np("auto-provide"))
 	---@cast autoprovide -nil
 	selected_node.auto_provide = autoprovide.state
+
+	local priority = tools.get_child(frame, np("priority"))
+	---@cast priority -nil
+	local text = priority.text
+	selected_node.priority = text ~= "" and tonumber(text) 
 
 	local provide_table = tools.get_child(frame, np("provide_table"))
 	if provide_table ~= nil then
