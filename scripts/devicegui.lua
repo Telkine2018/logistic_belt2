@@ -36,7 +36,7 @@ local delivery_fraction = 5
 
 ---@param stack_size number
 local function stacksize_to_delivery(stack_size)
-	return math.max(math.ceil(stack_size / delivery_fraction), 1)
+	return math.min(math.max(math.ceil(stack_size / delivery_fraction), 1), 50)
 end
 
 --------------------------------------------------
@@ -505,7 +505,7 @@ local function on_request_item_changed(e)
 		local index = tools.index_of(children, e.element)
 		local stack_size = game.item_prototypes[e.element.elem_value].stack_size
 		children[index + 1].text = tostring(stack_size)
-		children[index + 2].text = tostring(stacksize_to_delivery(stack_size / delivery_fraction))
+		children[index + 2].text = tostring(stacksize_to_delivery(stack_size))
 	end
 	if e.element == children[count - 2] then
 		if e.element.elem_value then
