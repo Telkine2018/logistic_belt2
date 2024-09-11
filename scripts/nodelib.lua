@@ -20,8 +20,6 @@ local get_opposite_direction = tools.get_opposite_direction
 local get_back = tools.get_back
 local get_front = tools.get_front
 local create_inserters = locallib.create_inserters
-local clear_entities = locallib.clear_entities
-local table_insert = table.insert
 local get_context = structurelib.get_context
 
 local trace_scan
@@ -481,6 +479,7 @@ end
 local function create_output_objects(iopoint, loader, inserter_count)
     local device = iopoint.device
     local surface = device.surface
+    local need_change = iopoint.is_output ~= true
     loader.loader_type = "output"
     iopoint.is_output = true
 
@@ -491,7 +490,7 @@ local function create_output_objects(iopoint, loader, inserter_count)
     end
 
     local inserters = surface.find_entities_filtered { position = device.position, name = inserter_name }
-    if #inserters ~= 2 * inserter_count then
+    if need_change or #inserters ~= 2 * inserter_count then
         if #inserters > 0 then
             for _, inserter in pairs(inserters) do
                 inserter.destroy()
@@ -515,7 +514,9 @@ nodelib.create_output_objects = create_output_objects
 local function create_input_object(iopoint, loader, inserter_count)
     local device = iopoint.device
     local surface = device.surface
+    local need_change = iopoint.is_output and iopoint.is_output ~= false
 
+    iopoint.is_output = nil
     loader.loader_type = "input"
 
     local output_position = get_back(device.direction, device.position)
@@ -525,7 +526,7 @@ local function create_input_object(iopoint, loader, inserter_count)
         return nil
     end
     local inserters = surface.find_entities_filtered { position = device.position, name = inserter_name }
-    if #inserters ~= 2 * inserter_count then
+    if need_change or #inserters ~= 2 * inserter_count then
         if #inserters > 0 then
             for _, inserter in pairs(inserters) do
                 inserter.destroy()

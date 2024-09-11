@@ -374,10 +374,12 @@ local function find_producer(node, req, amount)
     local found_provided
     ---@type integer?
     local found_available
-    ---@type number
-    local found_provided_value
     ---@type integer
     local found_priority
+    ---@type number
+    local found_dist
+
+    local origin = node.container.position
 
     while index <= count do
         local current = nodes_to_parse[index]
@@ -408,11 +410,13 @@ local function find_producer(node, req, amount)
                                 if provided_item then
                                     local available = (test_node.contents[item] or 0) - provided_item.provided
                                     if available >= amount then
+                                        local pos = test_node.container.position
+                                        local dist = math.abs(pos.x - origin.x) + math.abs(pos.y - origin.y)
                                         if found_priority then
                                             if found_priority > priority then
                                                 goto skip
                                             elseif found_priority == priority then
-                                                if found_provided_value and found_provided_value <= provided_item.provided then
+                                                if dist >= found_dist then
                                                     goto skip
                                                 end
                                             end
@@ -420,8 +424,8 @@ local function find_producer(node, req, amount)
                                         found_node = test_node
                                         found_provided = provided_item
                                         found_available = available
-                                        found_provided_value = provided_item.provided
                                         found_priority = priority
+                                        found_dist = dist
                                     end
                                 end
                             end
@@ -432,8 +436,16 @@ local function find_producer(node, req, amount)
                                         item = item,
                                         provided = 0
                                     }
-                                    if found_priority and found_priority >= priority then
-                                        goto skip
+                                    local pos = test_node.container.position
+                                    local dist = math.abs(pos.x - origin.x) + math.abs(pos.y - origin.y)
+                                    if found_priority then
+                                        if found_priority > priority then
+                                            goto skip
+                                        elseif found_priority == priority then
+                                            if dist >= found_dist then
+                                                goto skip
+                                            end
+                                        end
                                     end
                                     if not test_node.provided then
                                         test_node.provided = { [item] = provided_item }
@@ -443,8 +455,8 @@ local function find_producer(node, req, amount)
                                     found_node = test_node
                                     found_provided = provided_item
                                     found_available = available
-                                    found_provided_value = 0
                                     found_priority = priority
+                                    found_dist = dist
                                 end
                             end
                         end

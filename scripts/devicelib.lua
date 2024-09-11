@@ -48,8 +48,6 @@ local get_opposite_direction = tools.get_opposite_direction
 
 
 local create_loader = locallib.create_loader
-local find_loader = locallib.find_loader
-local create_inserters = locallib.create_inserters
 local clear_entities = locallib.clear_entities
 local adjust_direction = locallib.adjust_direction
 
