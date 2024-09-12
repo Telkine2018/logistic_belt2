@@ -408,102 +408,103 @@ local function find_producer(node, req, amount)
         local current_pos = current.container.position
         if current.inputs then
             for _, input in pairs(current.inputs) do
-                local connection = input.connection
+                if not input.error then
+                    local connection = input.connection
+                    for _, output in pairs(connection.outputs) do
+                        if not output.error then
+                            local test_node = output.node
+                            local id = test_node.id
+                            if not parsed_nodes[id] then
+                                parsed_nodes[id] = true
 
+                                local d
+                                if test_node.dist_cache then
+                                    d = test_node.dist_cache[current.id]
+                                end
+                                if not d then
+                                    local test_node_pos = test_node.container.position
+                                    d = distance(test_node_pos, current_pos)
+                                    if not test_node.dist_cache then
+                                        test_node.dist_cache = {}
+                                    end
+                                    d = d + current.previous_dist
+                                    test_node.dist_cache[current.id] = d
+                                end
+                                if test_node.graph_tick == graph_tick then
+                                    if test_node.previous_dist > d then
+                                        test_node.previous = current
+                                        test_node.dist_cache[current.id] = d
+                                    else
+                                        goto skip_node
+                                    end
+                                else
+                                    test_node.graph_tick = graph_tick
+                                    test_node.previous = current
+                                    test_node.previous_dist = d
+                                end
 
-                for _, output in pairs(connection.outputs) do
-                    local test_node = output.node
-                    local id = test_node.id
-
-                    if not parsed_nodes[id] then
-                        parsed_nodes[id] = true
-
-                        local d
-                        if test_node.dist_cache then
-                            d = test_node.dist_cache[current.id]
-                        end
-                        if not d then
-                            local test_node_pos = test_node.container.position
-                            d = distance(test_node_pos, current_pos)
-                            if not test_node.dist_cache then
-                                test_node.dist_cache = {}
-                            end
-                            d = d + current.previous_dist 
-                            test_node.dist_cache[current.id] = d
-                        end
-                        if test_node.graph_tick == graph_tick then
-                            if test_node.previous_dist > d  then
-                                test_node.previous = current
-                                test_node.dist_cache[current.id] = d
-                            else
-                                goto skip_node
-                            end
-                        else
-                            test_node.graph_tick = graph_tick 
-                            test_node.previous = current
-                            test_node.previous_dist = d 
-                        end
-
-                        if not test_node.saturated then
-                            ---@type ProvidedItem
-                            local provided_item
-                            local priority = test_node.priority or 0
-                            if test_node.provided then
-                                provided_item = test_node.provided[item]
-                                if provided_item then
-                                    local available = (test_node.contents[item] or 0) - provided_item.provided
-                                    if available >= amount then
-                                        local dist = test_node.previous_dist
-                                        if found_priority then
-                                            if found_priority > priority then
-                                                goto skip
-                                            elseif found_priority == priority then
-                                                if dist >= found_dist then
+                                if not test_node.saturated then
+                                    ---@type ProvidedItem
+                                    local provided_item
+                                    local priority = test_node.priority or 0
+                                    if test_node.provided then
+                                        provided_item = test_node.provided[item]
+                                        if provided_item then
+                                            local available = (test_node.contents[item] or 0) - provided_item.provided
+                                            if available >= amount then
+                                                local dist = test_node.previous_dist
+                                                if found_priority then
+                                                    if found_priority > priority then
+                                                        goto skip
+                                                    elseif found_priority == priority then
+                                                        if dist >= found_dist then
+                                                            goto skip
+                                                        end
+                                                    end
+                                                end
+                                                found_node = test_node
+                                                found_provided = provided_item
+                                                found_available = available
+                                                found_priority = priority
+                                                found_dist = dist
+                                            end
+                                        end
+                                    end
+                                    if not provided_item and test_node.auto_provide then
+                                        local available = (test_node.contents[item] or 0)
+                                        if available >= amount then
+                                            provided_item = {
+                                                item = item,
+                                                provided = 0
+                                            }
+                                            local dist = test_node.previous_dist
+                                            if found_priority then
+                                                if found_priority > priority then
                                                     goto skip
+                                                elseif found_priority == priority then
+                                                    if dist >= found_dist then
+                                                        goto skip
+                                                    end
                                                 end
                                             end
-                                        end
-                                        found_node = test_node
-                                        found_provided = provided_item
-                                        found_available = available
-                                        found_priority = priority
-                                        found_dist = dist
-                                    end
-                                end
-                            end
-                            if not provided_item and test_node.auto_provide then
-                                local available = (test_node.contents[item] or 0)
-                                if available >= amount then
-                                    provided_item = {
-                                        item = item,
-                                        provided = 0
-                                    }
-                                    local dist = test_node.previous_dist
-                                    if found_priority then
-                                        if found_priority > priority then
-                                            goto skip
-                                        elseif found_priority == priority then
-                                            if dist >= found_dist then
-                                                goto skip
+                                            if not test_node.provided then
+                                                test_node.provided = { [item] = provided_item }
+                                            else
+                                                test_node.provided[item] = provided_item
                                             end
+                                            found_node = test_node
+                                            found_provided = provided_item
+                                            found_available = available
+                                            found_priority = priority
+                                            found_dist = dist
                                         end
                                     end
-                                    if not test_node.provided then
-                                        test_node.provided = { [item] = provided_item }
-                                    else
-                                        test_node.provided[item] = provided_item
-                                    end
-                                    found_node = test_node
-                                    found_provided = provided_item
-                                    found_available = available
-                                    found_priority = priority
-                                    found_dist = dist
                                 end
+                                table.insert(nodes_to_parse, test_node)
+                                count = count + 1
+                                ::skip::
                             end
                         end
-                        table.insert(nodes_to_parse, test_node)
-                        count = count + 1
-                        ::skip::
                     end
                 end
             end

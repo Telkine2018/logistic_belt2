@@ -45,6 +45,7 @@
 ---@field inventory LuaInventory
 ---@field is_output boolean                 @ Container to belt
 ---@field node Node
+---@field error boolean?
 ---@field connection Connection
 ---@field inserters LuaEntity[]
 ---@field overflows table<string, integer>?

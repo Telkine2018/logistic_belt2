@@ -135,6 +135,10 @@ local function process_monitored_object()
 						local success, _, ids = nodelib.rebuild_network(device)
 						if not success then
 							monitored_new_list[device.unit_number] = device
+							local iopoint = context.iopoints[device.unit_number]
+							if iopoint then
+								iopoint.error = true
+							end
 						elseif ids then
 							local iopoint = context.iopoints[device.unit_number]
 							if iopoint then
@@ -145,6 +149,10 @@ local function process_monitored_object()
 								if monitored_err_ids[id]  then
 									rendering.destroy(monitored_err_ids[id])
 									monitored_err_ids[id] = nil
+								end
+								local iopoint = context.iopoints[id]
+								if iopoint then
+									iopoint.error = nil
 								end
 							end
 						end
