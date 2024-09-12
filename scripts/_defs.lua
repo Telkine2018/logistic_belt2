@@ -58,6 +58,9 @@
 ---@field contents table<string, integer>
 ---@field routings table<string, table<integer,Routing>>?           @ item => (id routing => routing)
 ---@field previous Node                                             @ link for searching provider
+---@field previous_dist number
+---@field graph_tick integer
+---@field dist_cache table<integer, number>
 ---@field next Node                                                 @ link for searching requester
 ---@field output_map table<integer, IOPoint[]>                      @ map (node) => [output to node]
 ---@field provided table<string, ProvidedItem>                      @ item => threshold
@@ -107,3 +110,4 @@
 ---@field node_per_tick number
 ---@field current_node_id  integer?
 ---@field structure_tick integer?
+---@field graph_tick integer

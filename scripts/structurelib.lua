@@ -262,6 +262,7 @@ function structurelib.reset_node(node, clean)
     node.previous = nil
     node.saturated = false
     node.remaining = nil
+    node.dist_cache = nil
 end
 
 local reset_node = structurelib.reset_node
@@ -323,6 +324,16 @@ function structurelib.on_mined_iopoint(entity)
     context.iopoints[id] = nil
 end
 
+---@param pos MapPosition
+---@param origin MapPosition
+local function distance(pos, origin)
+    local dx = pos.x - origin.x
+    if dx < 0 then dx = -dx end
+    local dy = pos.y - origin.y
+    if dy < 0 then dy = -dy end
+    return dx + dy
+end
+
 ---@param node Node
 ---@param req RequestedItem
 ---@param amount integer
@@ -361,10 +372,17 @@ local function find_producer(node, req, amount)
 
     ::skip::
 
+    local graph_tick = (context.graph_tick or 0) + 1
+    context.graph_tick = graph_tick
+
+
     ---@type table<integer, boolean>
     local parsed_nodes = { [node.id] = true }
     ---@type Node[]
     local nodes_to_parse = { node }
+
+    node.previous = nil
+    node.previous_dist = 0
 
     local index = 1
     local count = 1
@@ -379,8 +397,6 @@ local function find_producer(node, req, amount)
     ---@type number
     local found_dist
 
-    local origin = node.container.position
-
     while index <= count do
         local current = nodes_to_parse[index]
         index = index + 1
@@ -389,9 +405,11 @@ local function find_producer(node, req, amount)
                 goto skip_node
             end
         end
+        local current_pos = current.container.position
         if current.inputs then
             for _, input in pairs(current.inputs) do
                 local connection = input.connection
+
 
                 for _, output in pairs(connection.outputs) do
                     local test_node = output.node
@@ -399,7 +417,32 @@ local function find_producer(node, req, amount)
 
                     if not parsed_nodes[id] then
                         parsed_nodes[id] = true
-                        test_node.previous = current
+
+                        local d
+                        if test_node.dist_cache then
+                            d = test_node.dist_cache[current.id]
+                        end
+                        if not d then
+                            local test_node_pos = test_node.container.position
+                            d = distance(test_node_pos, current_pos)
+                            if not test_node.dist_cache then
+                                test_node.dist_cache = {}
+                            end
+                            d = d + current.previous_dist 
+                            test_node.dist_cache[current.id] = d
+                        end
+                        if test_node.graph_tick == graph_tick then
+                            if test_node.previous_dist > d  then
+                                test_node.previous = current
+                                test_node.dist_cache[current.id] = d
+                            else
+                                goto skip_node
+                            end
+                        else
+                            test_node.graph_tick = graph_tick 
+                            test_node.previous = current
+                            test_node.previous_dist = d 
+                        end
 
                         if not test_node.saturated then
                             ---@type ProvidedItem
@@ -410,8 +453,7 @@ local function find_producer(node, req, amount)
                                 if provided_item then
                                     local available = (test_node.contents[item] or 0) - provided_item.provided
                                     if available >= amount then
-                                        local pos = test_node.container.position
-                                        local dist = math.abs(pos.x - origin.x) + math.abs(pos.y - origin.y)
+                                        local dist = test_node.previous_dist
                                         if found_priority then
                                             if found_priority > priority then
                                                 goto skip
@@ -436,8 +478,7 @@ local function find_producer(node, req, amount)
                                         item = item,
                                         provided = 0
                                     }
-                                    local pos = test_node.container.position
-                                    local dist = math.abs(pos.x - origin.x) + math.abs(pos.y - origin.y)
+                                    local dist = test_node.previous_dist
                                     if found_priority then
                                         if found_priority > priority then
                                             goto skip
