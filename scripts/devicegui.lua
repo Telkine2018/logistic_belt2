@@ -260,7 +260,12 @@ function devicegui.open(player, entity)
 	end
 	add_provide_field(provide_flow)
 
+	local bImport = inner_frame.add { type = "button", name = np("import-content"), caption = { np("import-content") } }
+	bImport.style.top_margin = 5
+
+	line = inner_frame.add { type = "line" }
 	line.style.top_margin = 10
+
 	inner_frame.add { type = "label", caption = { np("restrictions-label") } }
 	local restrictions_flow = inner_frame.add {
 		type = "table",
@@ -268,6 +273,7 @@ function devicegui.open(player, entity)
 		column_count = 6,
 		name = np("restrictions_table")
 	}
+
 	if node.restrictions then
 		for item, _ in pairs(node.restrictions) do
 			local item_field      = add_restrictions_field(restrictions_flow)
@@ -277,10 +283,18 @@ function devicegui.open(player, entity)
 	add_restrictions_field(restrictions_flow)
 
 	line = inner_frame.add { type = "line" }
+	line.style.top_margin = 10
 
+	local flow = inner_frame.add { type = "flow" }
+	flow.add { type = "label", caption = { np("cleaner-label") } }
+	local field = flow.add {
+		type = "checkbox",
+		name = np("cleaner"),
+		tooltip = { np("cleaner-tooltip") },
+		state = not not node.cleaner }
+	field.style.left_margin = 10
+	flow.style.top_margin = 5
 
-	local bImport = inner_frame.add { type = "button", name = np("import-content"), caption = { np("import-content") } }
-	bImport.style.top_margin = 5
 end
 
 tools.on_gui_click(np("import-content"),
@@ -417,7 +431,11 @@ local function save_node_parameters(player)
 
 	local autoprovide = tools.get_child(frame, np("auto-provide"))
 	---@cast autoprovide -nil
-	selected_node.auto_provide = autoprovide.state
+	selected_node.auto_provide = autoprovide.state and true or nil
+
+	local cleaner = tools.get_child(frame, np("cleaner"))
+	---@cast cleaner -nil
+	selected_node.cleaner = cleaner.state and true or nil
 
 	local priority = tools.get_child(frame, np("priority"))
 	---@cast priority -nil

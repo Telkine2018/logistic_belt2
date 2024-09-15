@@ -77,6 +77,8 @@
 ---@field disabled_id integer
 ---@field full_id integer
 ---@field auto_provide boolean?
+---@field cleaner boolean?
+---@field cleaner_count integer
 
 ---@class Connection
 ---@field id integer

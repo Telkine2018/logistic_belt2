@@ -600,6 +600,51 @@ end
 structurelib.insert_routing = insert_routing
 
 ---@param node Node
+local function do_clean(node)
+    ---@type table<integer, boolean>
+    local parsed_nodes   = {}
+    local nodes_to_parse = { node }
+    local index          = 1
+    local count          = 1
+    while index <= count do
+        local current = nodes_to_parse[index]
+        index = index + 1
+        if current.inputs then
+            for _, input in pairs(current.inputs) do
+                if not input.error then
+                    local connection = input.connection
+                    for _, output in pairs(connection.outputs) do
+                        if not output.error then
+                            local test_node = output.node
+                            local id = test_node.id
+                            if not parsed_nodes[id] then
+                                parsed_nodes[id] = true
+                                if not test_node.cleaner then
+                                    test_node.previous = current
+                                    table.insert(nodes_to_parse, test_node)
+                                    count = count + 1
+                                    if node.contents then
+                                        for name, count in pairs(test_node.contents) do
+                                            if not (node.routings and node.routings[name]) and
+                                                not (test_node.requested and test_node.requested[name]) and
+                                                not (test_node.provided and test_node.provided[name])
+                                            then
+                                                insert_routing(test_node, node, name, count)
+                                                return
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+---@param node Node
 local function process_node(node)
     local inventory = node.inventory
     ---@type table<string, integer>
@@ -660,8 +705,6 @@ local function process_node(node)
                 if provided_req.provided < item_count then
                     item_count = provided_req.provided
                 end
-            else
-                item_count = 0
             end
 
             local input_count = input_items[item] or 0
@@ -940,6 +983,14 @@ local function process_node(node)
                     remaining[name] = count
                 end
             end
+        end
+    end
+
+    if node.cleaner then
+        node.cleaner_count = (node.cleaner_count or 0) + 1
+        if node.cleaner_count > 1 then
+            node.cleaner_count = nil
+            do_clean(node)
         end
     end
 
