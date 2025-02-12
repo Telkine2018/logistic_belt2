@@ -52,22 +52,22 @@ local clear_entities = locallib.clear_entities
 local adjust_direction = locallib.adjust_direction
 
 local function process_parameters()
-	if global.saved_parameters ~= nil and next(global.saved_parameters) then
+	if storage.saved_parameters ~= nil and next(storage.saved_parameters) then
 		local tick = game.tick
-		if not global.saved_time then
-			global.saved_time = tick
-		elseif global.saved_time < tick - SAVED_SCAVENGE_DELAY then
-			global.saved_time = tick
+		if not storage.saved_time then
+			storage.saved_time = tick
+		elseif storage.saved_time < tick - SAVED_SCAVENGE_DELAY then
+			storage.saved_time = tick
 			local removed = {}
 			local limit = tick - SAVED_SCAVENGE_DELAY
-			for id, parameters in pairs(global.saved_parameters) do
+			for id, parameters in pairs(storage.saved_parameters) do
 				if parameters.tick < limit then
 					table.insert(removed, id)
 				end
 			end
 			if #removed > 0 then
 				for _, id in pairs(removed) do
-					global.saved_parameters[id] = nil
+					storage.saved_parameters[id] = nil
 				end
 			end
 		end
@@ -75,14 +75,14 @@ local function process_parameters()
 end
 
 local function process_monitored_object()
-	if not global.structure_changed and not global.monitoring then return end
+	if not storage.structure_changed and not storage.monitoring then return end
 
-	if not global.monitored_delay then
-		global.monitored_delay = 12
+	if not storage.monitored_delay then
+		storage.monitored_delay = 12
 		return
 	end
-	global.monitored_delay = global.monitored_delay - 1
-	if global.monitored_delay > 0 then
+	storage.monitored_delay = storage.monitored_delay - 1
+	if storage.monitored_delay > 0 then
 		return
 	end
 
@@ -91,31 +91,31 @@ local function process_monitored_object()
 	local context = structurelib.get_context()
 
 	---@type table<integer, Node>
-	local nodes = global.monitored_nodes
+	local nodes = storage.monitored_nodes
 	if not nodes then
 		nodes                  = {}
-		global.monitored_nodes = nodes
+		storage.monitored_nodes = nodes
 	end
 
-	local monitored_new_list = global.monitored_new_list
+	local monitored_new_list = storage.monitored_new_list
 	if not monitored_new_list then
 		monitored_new_list = {}
-		global.monitored_new_list = monitored_new_list
+		storage.monitored_new_list = monitored_new_list
 	end
 
-	local monitored_devices = global.monitored_devices
+	local monitored_devices = storage.monitored_devices
 
-	local monitored_err_ids = global.monitored_err_ids 
+	local monitored_err_ids = storage.monitored_err_ids 
 	if not monitored_err_ids then
 		monitored_err_ids = {}
-		global.monitored_err_ids = monitored_err_ids
+		storage.monitored_err_ids = monitored_err_ids
 	end
 
 	if monitored_devices then
-		local done_map = global.monitored_done_map
+		local done_map = storage.monitored_done_map
 		if not done_map then
 			done_map = {}
-			global.monitored_done_map = done_map
+			storage.monitored_done_map = done_map
 		end
 
 		local key, device
@@ -124,7 +124,7 @@ local function process_monitored_object()
 
 			---@cast device LuaEntity
 			if device == nil then
-				global.monitored_devices = nil
+				storage.monitored_devices = nil
 				goto node_scan
 			end
 			monitored_devices[key] = nil
@@ -147,7 +147,7 @@ local function process_monitored_object()
 							for _, id in pairs(ids) do
 								done_map[id] = true
 								if monitored_err_ids[id]  then
-									rendering.destroy(monitored_err_ids[id])
+									monitored_err_ids[id].destroy()
 									monitored_err_ids[id] = nil
 								end
 								local iopoint = context.iopoints[id]
@@ -179,8 +179,8 @@ local function process_monitored_object()
 		structurelib.reset_network(node)
 	end
 
-	if global.update_map then
-		for id, parameters in pairs(global.update_map) do
+	if storage.update_map then
+		for id, parameters in pairs(storage.update_map) do
 			local iopoint = context.iopoints[id]
 			if iopoint then
 				---@cast parameters UpdateDeviceParameters
@@ -209,15 +209,15 @@ local function process_monitored_object()
 				end
 			end
 		end
-		global.update_map = nil
+		storage.update_map = nil
 	end
 
-	global.structure_changed = nil
-	global.monitoring = nil
-	global.monitored_devices = monitored_new_list
-	global.monitored_new_list = nil
-	global.monitored_nodes = nil
-	global.monitored_done_map = nil
+	storage.structure_changed = nil
+	storage.monitoring = nil
+	storage.monitored_devices = monitored_new_list
+	storage.monitored_new_list = nil
+	storage.monitored_nodes = nil
+	storage.monitored_done_map = nil
 	if next(monitored_new_list) then
 		for id, device in pairs(monitored_new_list) do
 			if not monitored_err_ids[id] and device.valid then
@@ -254,7 +254,7 @@ end
 local function on_build(entity, tags, player_index)
 	if not entity or not entity.valid then return end
 
-	global.structure_changed = true
+	storage.structure_changed = true
 	local name = entity.name
 	if name == device_name then
 		entity.active = false
@@ -268,6 +268,7 @@ local function on_build(entity, tags, player_index)
 	elseif name == overflow_name then
 		overflowlib.on_built_entity(entity, tags)
 	elseif name == sushi_name then
+		adjust_direction(entity)
 		sushilib.on_build(entity, tags, player_index)
 	elseif name == commons.router_name then
 		routerlib.on_build(entity, tags)
@@ -291,7 +292,7 @@ end
 
 ---@param ev EventData.on_robot_built_entity
 local function on_robot_built(ev)
-	local entity = ev.created_entity
+	local entity = ev.entity
 
 	on_build(entity, ev.tags)
 end
@@ -312,7 +313,7 @@ end
 
 ---@param ev EventData.on_built_entity
 local function on_player_built(ev)
-	local entity = ev.created_entity
+	local entity = ev.entity
 
 	on_build(entity, ev.tags, ev.player_index)
 end
@@ -383,11 +384,11 @@ script.on_event(defines.events.script_raised_destroy, on_mined, mine_filter)
 local function delete_all_from_surface(surface_index)
 	local context = structurelib.get_context()
 
-	---@type IOPoint[]
+	---@type table<string, IOPoint[]>
 	local iopoints_to_delete = {}
-	for _, iopoint in pairs(context.iopoints) do
-		if iopoint.device.surface_index == surface_index then
-			table.insert(iopoints_to_delete, iopoint)
+	for id, iopoint in pairs(context.iopoints) do
+		if iopoint.device.valid and iopoint.device.surface_index == surface_index then
+			iopoints_to_delete[id] = iopoint
 		end
 	end
 
@@ -399,8 +400,8 @@ local function delete_all_from_surface(surface_index)
 		end
 	end
 
-	for _, iopoint in pairs(iopoints_to_delete) do
-		structurelib.on_mined_iopoint(iopoint.device)
+	for id, iopoint in pairs(iopoints_to_delete) do
+		structurelib.on_mined_iopoint(iopoint.device, id)
 	end
 
 	for _, node in pairs(node_to_delete) do
@@ -432,10 +433,10 @@ tools.on_event(defines.events.on_pre_surface_deleted,
 ---@param parameters UpdateDeviceParameters
 function devicelib.update_parameters(device, parameters)
 	---@type table<integer, UpdateDeviceParameters>
-	local update_map = global.update_map
+	local update_map = storage.update_map
 	if not update_map then
 		update_map = {}
-		global.update_map = update_map
+		storage.update_map = update_map
 	end
 	update_map[device.unit_number] = parameters
 end

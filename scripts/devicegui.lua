@@ -41,14 +41,14 @@ end
 
 --------------------------------------------------
 
----@param request_flow any
+---@param request_flow LuaGuiElement
 ---@return LuaGuiElement
 ---@return LuaGuiElement
 ---@return LuaGuiElement
 local function add_request_field(request_flow)
 	local item_field = request_flow.add {
 		type = "choose-elem-button",
-		elem_type = "item",
+		elem_type = "item-with-quality",
 	}
 	local wfield = 70
 	tools.set_name_handler(item_field, np("request_item"))
@@ -78,7 +78,7 @@ end
 local function add_provide_field(request_flow)
 	local item_field = request_flow.add {
 		type = "choose-elem-button",
-		elem_type = "item"
+		elem_type = "item-with-quality"
 	}
 	tools.set_name_handler(item_field, np("provide_item"))
 	return item_field
@@ -88,7 +88,7 @@ end
 local function add_restrictions_field(request_flow)
 	local item_field = request_flow.add {
 		type = "choose-elem-button",
-		elem_type = "item"
+		elem_type = "item-with-quality"
 	}
 	tools.set_name_handler(item_field, np("restrictions_item"))
 	return item_field
@@ -163,6 +163,7 @@ function devicegui.open(player, entity)
 	}
 	drag.style.horizontally_stretchable = true
 
+	--[[
 	titleflow.add {
 		type = "sprite-button",
 		name = np("purge"),
@@ -172,6 +173,7 @@ function devicegui.open(player, entity)
 		sprite = prefix .. "_purge_white",
 		hovered_sprite = prefix .. "_purge_black"
 	}
+	--]]
 	titleflow.add {
 		type = "sprite-button",
 		name = np("reset"),
@@ -224,8 +226,9 @@ function devicegui.open(player, entity)
 		name = np("request_table")
 	}
 	if node.requested then
-		for item, request in pairs(node.requested) do
+		for qname, request in pairs(node.requested) do
 			local item_field, count_field, delivery_field = add_request_field(request_flow)
+			local item = tools.string_to_item(qname)
 			item_field.elem_value = item
 			count_field.text = tools.number_to_text(request.count)
 			delivery_field.text = tools.number_to_text(request.delivery)
@@ -253,8 +256,9 @@ function devicegui.open(player, entity)
 		name = np("provide_table")
 	}
 	if node.provided then
-		for item, _ in pairs(node.provided) do
+		for qname, _ in pairs(node.provided) do
 			local item_field      = add_provide_field(provide_flow)
+			local item = tools.string_to_item(qname)
 			item_field.elem_value = item
 		end
 	end
@@ -275,8 +279,9 @@ function devicegui.open(player, entity)
 	}
 
 	if node.restrictions then
-		for item, _ in pairs(node.restrictions) do
+		for qname, _ in pairs(node.restrictions) do
 			local item_field      = add_restrictions_field(restrictions_flow)
+			local item = tools.string_to_item(qname)
 			item_field.elem_value = item
 		end
 	end
@@ -322,13 +327,13 @@ tools.on_gui_click(np("import-content"),
 		end
 
 		provide_table.clear()
-		for item, _ in pairs(contents) do
+		for _, item in pairs(contents) do
 			if not requests or requests[item] then
 				local item_field      = add_provide_field(provide_table)
-				item_field.elem_value = item
+				item_field.elem_value = item --[[@as SignalID ]]
 			end
 		end
-		add_provide_field(provide_table)
+		add_provide_field(provide_table) 
 	end)
 
 tools.on_gui_click(np("reset"),
@@ -417,13 +422,14 @@ local function save_node_parameters(player)
 			local f_item = children[index]
 			local f_count = children[index + 1]
 			local f_delivery = children[index + 2]
-			local item = f_item.elem_value --[[@as string]]
+			local item = f_item.elem_value --[[@as ItemFilter]]
 			local tcount = f_count.text
 			local count = tonumber(tcount)
 			local delivery = tools.text_to_number(f_delivery.text) or config.default_delivery
 
 			if count and item then
-				nodelib.add_request(selected_node, item, count, delivery, old_requests)
+				local qname = tools.item_to_string(item)
+				nodelib.add_request(selected_node, qname, count, delivery, old_requests)
 			end
 			index = index + 3
 		end
@@ -451,14 +457,16 @@ local function save_node_parameters(player)
 		local index = 1
 		while index <= #children do
 			local f_item = children[index]
-			local item = f_item.elem_value
+			local item = f_item.elem_value --[[@as ItemFilter]]
 
 			if item then
-				local existing = (selected_node.provided and selected_node.provided[item])
+				local qname = tools.item_to_string(item)
+				---@cast qname -nil
+				local existing = (selected_node.provided and selected_node.provided[qname])
 				if existing then
-					provided[item] = existing
+					provided[qname] = existing
 				else
-					provided[item] = {
+					provided[qname] = {
 						item = item,
 						min = 1,
 						provided = 0
@@ -485,7 +493,9 @@ local function save_node_parameters(player)
 			local item = f_item.elem_value
 
 			if item then
-				restrictions[item] = true
+				local qname = tools.item_to_string(item)
+				---@cast qname -nil
+				restrictions[qname] = true
 			end
 			index = index + 1
 		end
@@ -531,8 +541,8 @@ local function on_request_item_changed(e)
 	local count = #children
 
 	if e.element.elem_value then
-		local index = tools.index_of(children, e.element)
-		local stack_size = game.item_prototypes[e.element.elem_value].stack_size
+		local index =  e.element.get_index_in_parent()
+		local stack_size = prototypes.item[e.element.elem_value.name].stack_size
 		children[index + 1].text = tostring(stack_size)
 		children[index + 2].text = tostring(stacksize_to_delivery(stack_size))
 	end
@@ -542,7 +552,7 @@ local function on_request_item_changed(e)
 		end
 	else
 		if not e.element.elem_value then
-			local index = tools.index_of(children, e.element)
+			local index = e.element.get_index_in_parent()
 			e.element.destroy()
 			children[index + 1].destroy()
 			children[index + 2].destroy()
@@ -624,7 +634,7 @@ end
 ---@param mapping LuaEntity[]
 ---@param surface LuaSurface
 local function register_mapping(bp, mapping, surface)
-	local parameter_map = global.parameters
+	local parameter_map = storage.parameters
 	local context = structurelib.get_context()
 	local is_processed = {}
 	local bp_count = bp.get_blueprint_entity_count()
@@ -640,7 +650,7 @@ local function register_mapping(bp, mapping, surface)
 						is_processed[entity.link_id] = true
 						local filters = routerlib.get_filters(entity.get_inventory(defines.inventory.chest) --[[@as LuaInventory]])
 						bp.set_blueprint_entity_tags(index, {
-							filters = filters and game.table_to_json(filters),
+							filters = filters and helpers.table_to_json(filters),
 							logistic_belt2_node = true,
 							provided = node and dup_request(node.provided) --[[@as table]],
 							requested = node and dup_request(node.requested) --[[@as table]],
@@ -663,8 +673,8 @@ local function register_mapping(bp, mapping, surface)
 					local parameters = parameter_map[entity.unit_number] --[[@as Parameters]]
 					if parameters then
 						bp.set_blueprint_entity_tags(index, {
-							lane1_items = parameters.lane1_items and game.table_to_json(parameters.lane1_items),
-							lane2_items = parameters.lane2_items and game.table_to_json(parameters.lane2_items),
+							lane1_items = parameters.lane1_items and helpers.table_to_json(parameters.lane1_items),
+							lane2_items = parameters.lane2_items and helpers.table_to_json(parameters.lane2_items),
 							lane1_item_interval = parameters.lane1_item_interval,
 							lane2_item_interval = parameters.lane2_item_interval,
 							speed = parameters.speed,
@@ -694,13 +704,13 @@ local function register_mapping(bp, mapping, surface)
 							local filters = routerlib.get_filters(router.get_inventory(defines.inventory.chest) --[[@as LuaInventory]])
 							bp.set_blueprint_entity_tags(index, {
 								logistic_belt2_node = (node ~= nil),
-								filters = filters and game.table_to_json(filters),
+								filters = filters and helpers.table_to_json(filters),
 								provided = node and dup_request(node.provided) --[[@as table]],
 								requested = node and dup_request(node.requested) --[[@as table]],
 								restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
 							})
 						end
-					elseif locallib.container_type_map[game.entity_prototypes[bp_entity.name].type] then
+					elseif locallib.container_type_map[helpers.entity_prototypes[bp_entity.name].type] then
 						local container = (surface.find_entities_filtered { name = bp_entity.name, position = bp_entity.position, radius = 0.1 })[1]
 						if container then
 							local node = structurelib.get_node(container)
@@ -719,8 +729,8 @@ local function register_mapping(bp, mapping, surface)
 							local parameters = locallib.get_parameters(sushi) --[[@as Parameters]]
 							if parameters then
 								bp.set_blueprint_entity_tags(index, {
-									lane1_items = parameters.lane1_items and game.table_to_json(parameters.lane1_items),
-									lane2_items = parameters.lane2_items and game.table_to_json(parameters.lane2_items),
+									lane1_items = parameters.lane1_items and helpers.table_to_json(parameters.lane1_items),
+									lane2_items = parameters.lane2_items and helpers.table_to_json(parameters.lane2_items),
 									lane1_item_interval = parameters.lane1_item_interval,
 									lane2_item_interval = parameters.lane2_item_interval,
 									speed = parameters.speed,
@@ -808,7 +818,7 @@ local function on_entity_cloned(ev)
 	local src_id = source.unit_number
 	local source_name = source.name
 
-	global.structure_changed = true
+	storage.structure_changed = true
 	local nsrc = structurelib.get_node(source)
 	if nsrc then
 		local ndst = structurelib.create_node(dest)
@@ -843,7 +853,7 @@ end
 
 local function on_init()
 	picker_dolly_blacklist()
-	global.clusters = {}
+	storage.clusters = {}
 end
 
 local function on_load()
@@ -956,20 +966,22 @@ local function on_shift_button1(e)
 		local requested = node.requested
 		for _, ingredient in pairs(recipe.ingredients) do
 			if ingredient.type == "item" then
-				local item = ingredient.name
-				local count = math.min(200, game.item_prototypes[item].stack_size)
+				local name = ingredient.name
+				local qname = tools.item_to_string({name=name})
+				local count = math.min(200, prototypes.item[name].stack_size)
 				if not requested then
 					requested = {}
 					node.requested = requested
 				end
-				local req = tools.table_deep_copy(requested[item])
+				local req = tools.table_deep_copy(requested[qname])
 				if req then
 					req.count = count
 					req.delivery = stacksize_to_delivery(count)
 				else
-					requested[item] = {
+					---@cast qname -nil
+					requested[qname] = {
 						count = count,
-						item = item,
+						item = qname,
 						delivery = stacksize_to_delivery(count),
 						remaining = 0
 					}

@@ -18,6 +18,8 @@ local debug = tools.debug
 local cdebug = tools.cdebug
 local get_vars = tools.get_vars
 local strip = tools.strip
+local string_to_item = tools.string_to_item
+local string_to_items = tools.string_to_items
 
 --local debug_nodeids = { [1347116] = true, [1347193] = true, [1347149] = true }
 local debug_nodeids = {}
@@ -46,13 +48,15 @@ local function purge_content(content)
     if not content then return end
 
     local to_delete = {}
-    for item, _ in pairs(content) do
-        if not game.item_prototypes[item] then
-            to_delete[item] = true
+    for qname, _ in pairs(content) do
+        local item = tools.string_to_item(qname)
+        ---@cast item -nil
+        if not prototypes.item[item.name] then
+            to_delete[qname] = true
         end
     end
-    for item, _ in pairs(to_delete) do
-        content[item] = nil
+    for qname, _ in pairs(to_delete) do
+        content[qname] = nil
     end
 end
 
@@ -62,7 +66,7 @@ function structurelib.get_context()
     if context then
         return context
     end
-    context = global.context
+    context = storage.context
     if context then
         if not migration_done then
             structurelib.repair(context)
@@ -78,7 +82,7 @@ function structurelib.get_context()
         node_per_tick = 0,
         current_node_id = nil
     }
-    global.context = context
+    storage.context = context
     return context
 end
 
@@ -312,9 +316,13 @@ function structurelib.on_mined_container(entity)
 end
 
 ---@param entity LuaEntity
-function structurelib.on_mined_iopoint(entity)
+---@param id integer?
+function structurelib.on_mined_iopoint(entity, id)
     local context = get_context()
-    local id = entity.unit_number
+    
+    if not id then
+        id = entity.unit_number
+    end
 
     local iopoint = context.iopoints[id]
     if not iopoint then return end
@@ -644,6 +652,8 @@ local function do_clean(node)
     end
 end
 
+local item_to_string = tools.item_to_string
+
 ---@param node Node
 local function process_node(node)
     local inventory = node.inventory
@@ -673,8 +683,10 @@ local function process_node(node)
         for _, input in pairs(node.inputs) do
             if not input.inventory.is_empty() then
                 local input_contents = input.inventory.get_contents()
-                for name, count in pairs(input_contents) do
-                    input_items[name] = (input_items[name] or 0) + count
+                for _, item in pairs(input_contents) do
+                    local qname = item_to_string(item)
+                    ---@cast qname -nil
+                    input_items[qname] = (input_items[qname] or 0) + item.count
                 end
                 input.inventory.clear()
                 changed = true
@@ -690,7 +702,13 @@ local function process_node(node)
         node.remaining = nil
     end
 
-    contents = inventory.get_contents()
+    local content_list = inventory.get_contents()
+    contents = {}
+    for _, item in pairs(content_list) do
+        local qname = item_to_string(item)
+        ---@cast qname -nil
+        contents[qname] = item.count
+    end
 
 
     -- do routing
@@ -698,16 +716,22 @@ local function process_node(node)
     if node.routings then
         local to_remove_items
         changed = true
-        for item, routing_map in pairs(node.routings) do
-            local item_count = (contents[item] or 0)
-            local provided_req = node.provided and node.provided[item]
+        for qname, routing_map in pairs(node.routings) do
+            local item_count = (contents[qname] or 0)
+            local item = string_to_items[qname]
+            if not item then
+                item = string_to_item(qname)
+            end
+
+            ---@cast item -nil
+            local provided_req = node.provided and node.provided[qname]
             if provided_req then
                 if provided_req.provided < item_count then
                     item_count = provided_req.provided
                 end
             end
 
-            local input_count = input_items[item] or 0
+            local input_count = input_items[qname] or 0
             local available = item_count + input_count
 
             if available > 0 then
@@ -735,7 +759,8 @@ local function process_node(node)
                         inserted_amount = remaining_available
                     end
 
-                    local real_inserted = routing.output.inventory.insert { name = item, count = inserted_amount }
+                    local real_inserted = routing.output.inventory.insert {
+                        name = item.name, count = inserted_amount, quality = item.quality }
                     if real_inserted ~= inserted_amount then
                         node.saturated = true
                     end
@@ -760,7 +785,7 @@ local function process_node(node)
                     debug("(" .. node.id .. ") routing after: " .. item .. "=" .. total_inserted)
                 end
  ]]
-                input_items[item] = input_count - total_inserted
+                input_items[qname] = input_count - total_inserted
 
                 -- Remove completed routing
                 if to_remove_routings then
@@ -769,9 +794,9 @@ local function process_node(node)
                     end
                     if not next(routing_map) then
                         if not to_remove_items then
-                            to_remove_items = { item }
+                            to_remove_items = { qname }
                         else
-                            table_insert(to_remove_items, item)
+                            table_insert(to_remove_items, qname)
                         end
 
                         --[[                         if debug_nodeids[node.id] then
@@ -808,7 +833,7 @@ local function process_node(node)
                 node.routings = nil
 
                 --[[                 if debug_nodeids[node.id] then
-                    debug("(" .. node.id .. ") remove global routing")
+                    debug("(" .. node.id .. ") remove storage routing")
                 end
  ]]
             end
@@ -893,7 +918,7 @@ local function process_node(node)
             ::cancel::
         end
         if node.disabled_id then
-            rendering.destroy(node.disabled_id)
+            node.disabled_id.destroy()
             node.disabled_id = nil
         end
     else
@@ -910,14 +935,19 @@ local function process_node(node)
     end
     if node.overflows then
         for _, output in pairs(node.overflows) do
-            for name, amount in pairs(output.overflows) do
-                local amount_c = contents[name]
+            for qname, amount in pairs(output.overflows) do
+                local amount_c = contents[qname]
                 if amount_c and amount_c > amount then
                     local count = amount_c - amount
-                    local real = output.inventory.insert { name = name, count = count }
+                    local item = string_to_items[qname]
+                    if not item then
+                        item = string_to_item(qname)
+                    end
+                    ---@cast item -nil
+                    local real = output.inventory.insert { name = item.name, count = count, quality = item.quality }
                     if real > 0 then
-                        contents[name] = contents[name] - real
-                        input_items[name] = -real
+                        contents[qname] = contents[qname] - real
+                        input_items[qname] = -real
                         changed = true
                     end
                     if real ~= count then
@@ -935,21 +965,26 @@ local function process_node(node)
             debug("(" .. node.id .. ") remains to_inventory=" .. tools.strip(to_inventory))
         end
  ]]
-        for name, count in pairs(to_inventory) do
+        for qname, count in pairs(to_inventory) do
+            local item = string_to_items[qname]
+            if not item then
+                item = string_to_item(qname)
+            end
+            ---@cast item -nil
             if count > 0 then
-                local inserted = inventory.insert { name = name, count = count }
-                contents[name] = (contents[name] or 0) + inserted
+                local inserted = inventory.insert { name = item.name, count = count, quality = item.quality }
+                contents[qname] = (contents[qname] or 0) + inserted
                 if inserted ~= count then
                     if not remaining then
                         remaining = {}
                     end
-                    remaining[name] = count - inserted
+                    remaining[qname] = count - inserted
                 end
             elseif count < 0 then
-                local removed = inventory.remove { name = name, count = -count }
-                contents[name] = (contents[name] or 0) - removed
-                if contents[name] < 0 then
-                    contents[name] = 0
+                local removed = inventory.remove { name = item.name, count = -count, quality = item.name }
+                contents[qname] = (contents[qname] or 0) - removed
+                if contents[qname] < 0 then
+                    contents[qname] = 0
                 end
             end
         end
@@ -958,29 +993,34 @@ local function process_node(node)
                 debug("(" .. node.id .. ") remains input_items=" .. tools.strip(input_items))
             end
  ]]
-            for name, count in pairs(input_items) do
-                if (not node.routings) or (not node.routings[name]) or count < 0 then
+            for qname, count in pairs(input_items) do
+                if (not node.routings) or (not node.routings[qname]) or count < 0 then
+                    local item = string_to_items[qname]
+                    if not item then
+                        item = string_to_item(qname)
+                    end
+                    ---@cast item -nil
                     if count < 0 then
                         count = -count
-                        local real = inventory.remove { name = name, count = count }
+                        local real = inventory.remove { name = item.name, count = count, quality = item.quality }
                         if real ~= count then
-                            log("---> invalid remove: nodeid=" .. node.id .. ",item=" .. name .. "," .. count .. " => " .. real)
+                            log("---> invalid remove: nodeid=" .. node.id .. ",item=" .. qname .. "," .. count .. " => " .. real)
                         end
                     elseif count > 0 then
-                        log("---> input remains: nodeid=" .. node.id .. ",item=" .. name .. "," .. count)
-                        local inserted = inventory.insert { name = name, count = count }
+                        log("---> input remains: nodeid=" .. node.id .. ",item=" .. qname .. "," .. count)
+                        local inserted = inventory.insert { name = item.name, count = count, quality = item.quality }
                         if inserted ~= count then
                             if not remaining then
                                 remaining = {}
                             end
-                            remaining[name] = count - inserted
+                            remaining[qname] = count - inserted
                         end
                     end
                 elseif count > 0 then
                     if not remaining then
                         remaining = {}
                     end
-                    remaining[name] = count
+                    remaining[qname] = count
                 end
             end
         end
@@ -997,10 +1037,19 @@ local function process_node(node)
     if remaining then
         if node.disabled then
             if not node.routings then
-                for name, count in pairs(remaining) do
-                    local inserted = inventory.insert { name = name, count = count }
+                for qname, count in pairs(remaining) do
+                    local item = string_to_items[qname]
+                    if not item then
+                        item = string_to_item(qname)
+                    end
+                    ---@cast item -nil
+                    local inserted = inventory.insert { name = item.name, count = count, quality = item.quality }
                     if inserted < count then
-                        node.container.surface.spill_item_stack(node.container.position, { name = name, count = count }, true, node.container.force)
+                        node.container.surface.spill_item_stack 
+                        {   position = node.container.position,
+                            stack = { name = item.name, count = count, quality = item.quality },
+                            enable_looted = true, 
+                            force = node.container.force }
                     end
                 end
                 remaining = nil
@@ -1022,7 +1071,7 @@ local function process_node(node)
         end
     else
         if node.full_id then
-            rendering.destroy(node.full_id)
+            node.full_id.destroy()
             node.full_id = nil
         end
     end
@@ -1031,7 +1080,7 @@ end
 
 ---@param e {tick:integer}
 local function on_tick(e)
-    if global.monitoring then
+    if storage.monitoring then
         return
     end
 
@@ -1166,8 +1215,36 @@ function structurelib.repair(context)
     end
 end
 
+local function migration_2_0_0()
+
+    local context = storage.context ---@as Context
+    if not context then return end
+
+    for _, iopoint in pairs(context.iopoints) do
+        if iopoint.device.valid then
+            iopoint.device.direction = tools.get_opposite_direction(iopoint.device.direction)
+            iopoint.device.use_filters = false
+        end
+    end
+
+    for _, n in pairs(context.nodes) do
+        if type(n.disabled_id) == "number" then
+            n.disabled_id = rendering.get_object_by_id(n.disabled_id --[[@as integer]])
+        end
+        if type(n.full_id) == "number" then
+            n.full_id = rendering.get_object_by_id(n.full_id --[[@as integer]])
+        end
+    end
+
+end
+
+local migrations_table = {
+
+    ["2.0.0"] = migration_2_0_0
+}
+
 local function general_migrations()
-    local context = global.context
+    local context = storage.context
 
     migration_done = true
     local to_delete = {}
@@ -1212,6 +1289,9 @@ local function general_migrations()
 end
 
 local function on_configuration_changed(data)
+
+    get_context()    
+    migration.on_config_changed(data, migrations_table)
     general_migrations()
 end
 

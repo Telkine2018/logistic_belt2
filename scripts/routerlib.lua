@@ -274,8 +274,8 @@ function routerlib.set_routers_in_cluster(entity, routers, link_id, filters)
                             base_inv.set_filter(i, nil);
                         end
                     end
-                    for name, count in pairs(contents) do
-                        base_inv.insert({ name = name, count = count })
+                    for _, item in pairs(contents) do
+                        base_inv.insert({ name = item.name, quality = item.quality, count = item.count })
                     end
                     done[org_link_id] = true
 
@@ -301,8 +301,8 @@ function routerlib.set_routers_in_cluster(entity, routers, link_id, filters)
         base_inv.clear()
 
         local index = routerlib.apply_filters(base_inv, merge_filters)
-        for name, count in pairs(contents) do
-            base_inv.insert({ name = name, count = count })
+        for _, item in pairs(contents) do
+            base_inv.insert({ name = item.name, count = item.count, quality = item.quality })
         end
         if index > 1 and index < #base_inv then
             base_inv.set_bar(index)
@@ -359,7 +359,7 @@ function routerlib.on_build(entity, tags)
     local filters
     if tags then
         if tags.filters then
-            filters = game.json_to_table(tags.filters --[[@as string]]) --[[@as table<string, integer>]]
+            filters = helpers.json_to_table(tags.filters --[[@as string]]) --[[@as table<string, integer>]]
         end
     end
 
@@ -373,7 +373,7 @@ function routerlib.on_build(entity, tags)
         local surface = entity.surface
         entity.destroy()
         if items and #items > 0 then
-            surface.spill_item_stack(position, { name = items[1].name, count = 1 })
+            surface.spill_item_stack { position = position, stack = { name = items[1].name, count = 1, quality = items[1].quality } }
         end
         return
     end
@@ -447,17 +447,21 @@ function routerlib.on_mined(ev)
             local player = game.players[ev.player_index]
             local player_inv = player.get_main_inventory()
             if player_inv then
-                for name, count in pairs(contents) do
-                    local count1 = player_inv.insert { name = name, count = count }
-                    if count1 < count and config.spill_items_on_ground then
-                        entity.surface.spill_item_stack(entity.position, { name = name, count = count - count1 }, true, force)
+                for _, item in pairs(contents) do
+                    local count1 = player_inv.insert { name = item.name, count = item.count, quality = item.quality }
+                    if count1 < item.count and config.spill_items_on_ground then
+                        entity.surface.spill_item_stack { position = entity.position,
+                            stack = { name = item.name, count = item.count - count1, quality = item.quality },
+                            enable_looted = true, force = force }
                     end
                 end
             end
         else
             if config.spill_items_on_ground then
-                for name, count in pairs(contents) do
-                    entity.surface.spill_item_stack(entity.position, { name = name, count = count }, true, force)
+                for _, item in pairs(contents) do
+                    entity.surface.spill_item_stack { position = entity.position,
+                        stack = { name = item.name, count = item.count, quality = item.quality },
+                        enable_looted = true, force = force }
                 end
             end
         end
@@ -498,7 +502,6 @@ local router_tech1 = prefix .. "-router-tech"
 
 ---@param force LuaForce
 function routerlib.get_router_max(force)
-
     local router_max = settings.startup[prefix .. "-max-router-entity"].value
     local tech = force.technologies[router_tech1]
     if not tech or not tech.enabled then

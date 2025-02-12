@@ -150,7 +150,7 @@ function nodelib.purge(node)
                 for item, request in pairs(current.requested) do
                     local count = contents[item]
                     if count then
-                        local stack_size = game.item_prototypes[item].stack_size
+                        local stack_size = prototypes.item[item].stack_size
                         local slot_count = 0
                         local inv = current.inventory
                         local free
@@ -235,7 +235,7 @@ end
 ---@return table<string, integer>?			@ item on belt network
 ---@return boolean?
 local function scan_network(device)
-    local position = get_front(device.direction, device.position)
+    local position = get_back(device.direction, device.position)
     local entities = device.surface.find_entities_filtered { position = position, type = locallib.belt_types }
 
     if #entities == 0 then return end
@@ -277,6 +277,7 @@ local function scan_network(device)
         if id == nil then
             break
         end
+        ---@cast belt -nil
         to_scan[id] = nil
         scanned[id] = belt
         local neightbours = belt.belt_neighbours
@@ -344,8 +345,10 @@ local function scan_network(device)
             local t = belt.get_transport_line(i)
             if t then
                 local t_content = t.get_contents()
-                for item, count in pairs(t_content) do
-                    content[item] = (content[item] or 0) - count
+                for _, item in pairs(t_content) do
+                    local qname = tools.item_to_string(item)
+                    ---@cast qname -nil
+                    content[qname] = (content[qname] or 0) - item.count
                 end
             end
         end
@@ -373,7 +376,7 @@ local function build_device_list(loaders, player)
         local device_list = loader.surface.find_entities_filtered { position = position, name = { device_name, overflow_name } }
         if #device_list > 0 then
             local device = device_list[1]
-            local search_pos = get_front(device.direction, device.position)
+            local search_pos = get_back(device.direction, device.position)
             if tools.tracing then
                 debug("SearchPOS:" .. strip(search_pos))
                 debug("Device: " ..
@@ -483,7 +486,7 @@ local function create_output_objects(iopoint, loader, inserter_count)
     loader.loader_type = "output"
     iopoint.is_output = true
 
-    local container_position = get_back(device.direction, device.position)
+    local container_position = get_front(device.direction, device.position)
     local container = find_container(surface, container_position)
     if not container then
         return nil
@@ -498,7 +501,7 @@ local function create_output_objects(iopoint, loader, inserter_count)
             iopoint.inserters = nil
         end
         local positions = locallib.output_positions2
-        inserters = create_inserters(device, get_opposite_direction(device.direction), positions[1], inserter_count, inserter_name)
+        inserters = create_inserters(device, device.direction, positions[1], inserter_count, inserter_name)
     end
 
     iopoint.inserters = inserters
@@ -519,9 +522,8 @@ local function create_input_object(iopoint, loader, inserter_count)
     iopoint.is_output = nil
     loader.loader_type = "input"
 
-    local output_position = get_back(device.direction, device.position)
-
-    local container = find_container(surface, output_position)
+    local container_position = get_front(device.direction, device.position)
+    local container = find_container(surface, container_position)
     if not container then
         return nil
     end

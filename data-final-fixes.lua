@@ -15,13 +15,6 @@ if data.raw["linked-container"]["logistic_belt-router"] then
 	data.raw["linked-container"]["logistic_belt-router"].localised_description = {"entity-description.logistic_belt2-router"}
 end
 
-data.raw.inserter[commons.prefix .. "-device"].filter_count = 5
-data.raw.inserter[commons.prefix .. "-sushi"].filter_count = 5
-data.raw.inserter[commons.prefix .. "-inserter"].filter_count = 0
-data.raw.inserter[commons.prefix .. "-inserter-filter"].filter_count = 5
-data.raw.inserter[commons.prefix .. "-inserter-filter-slow"].filter_count = 5
-
-
 data:extend
 {
     {

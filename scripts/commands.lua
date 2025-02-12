@@ -151,7 +151,7 @@ local function list_disconnected(player_index)
     local context = get_context()
 
     ---@type LuaEntity[]
-    local devices = global.monitored_devices
+    local devices = storage.monitored_devices
     if not devices then return end
     player.clear_console()
     for _, device in pairs(devices) do

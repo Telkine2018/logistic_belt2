@@ -3,7 +3,7 @@ local tools = require "scripts.tools"
 local locallib = require "scripts.locallib"
 local config = require "scripts.config"
 local structurelib = require "scripts.structurelib"
-local nodelib= require "scripts.nodelib"
+local nodelib = require "scripts.nodelib"
 
 local prefix = commons.prefix
 
@@ -87,7 +87,7 @@ function overflowlib.on_built_entity(entity, tags)
     if tags and tags.overflows then
         iopoint.overflows = tags.overflows --[[@as table<string, integer>]]
     end
-    
+
     local context = structurelib.get_context()
     context.iopoints[iopoint_id] = iopoint
 
@@ -113,15 +113,17 @@ function overflowlib.on_mined(entity)
 end
 
 ---@param overflow_table LuaGuiElement
----@param item string?
+---@param qname string?
 ---@param count integer?
-local function add_overflow_field(overflow_table, item, count)
+local function add_overflow_field(overflow_table, qname, count)
     local item_field = overflow_table.add {
         type = "choose-elem-button",
-        elem_type = "item",
+        elem_type = "item-with-quality",
         tooltip = { np("overflow_item_tooltip") }
     }
-    if item then
+    if qname then
+        local item = tools.string_to_item(qname)
+        ---@cast item -nil
         item_field.elem_value = item
     end
     tools.set_name_handler(item_field, np("overflow_item"))
@@ -160,7 +162,7 @@ local function on_gui_open_overflow_panel(event)
 
     vars.selected_iopoint = iopoint
 
-    local frame   = player.gui.left.add {
+    local frame           = player.gui.left.add {
         type = "frame",
         name = commons.overflow_panel_name,
         direction = "vertical"
@@ -193,23 +195,23 @@ local function on_gui_open_overflow_panel(event)
     player.opened = frame
 end
 
-tools.on_gui_click(np("save"), 
----@param e EventData.on_gui_click
-function(e)
-    local player = game.players[e.player_index]
-    overflowlib.save(player)
-    locallib.close_ui(player)
-end)
-
-tools.on_event(defines.events.on_gui_confirmed, 
----@param e EventData.on_gui_confirmed
-function(e)
-    local player = game.players[e.player_index]
-    if player.gui.left[commons.overflow_panel_name] then
+tools.on_gui_click(np("save"),
+    ---@param e EventData.on_gui_click
+    function(e)
+        local player = game.players[e.player_index]
         overflowlib.save(player)
         locallib.close_ui(player)
-    end
-end)
+    end)
+
+tools.on_event(defines.events.on_gui_confirmed,
+    ---@param e EventData.on_gui_confirmed
+    function(e)
+        local player = game.players[e.player_index]
+        if player.gui.left[commons.overflow_panel_name] then
+            overflowlib.save(player)
+            locallib.close_ui(player)
+        end
+    end)
 
 tools.on_event(defines.events.on_gui_opened, on_gui_open_overflow_panel)
 
@@ -229,7 +231,7 @@ local function on_overflow_item_changed(e)
 
     if e.element.elem_value then
         local index = tools.index_of(children, e.element)
-        children[index + 1].text = tostring(game.item_prototypes[e.element.elem_value].stack_size)
+        children[index + 1].text = tostring(prototypes.item[e.element.elem_value.name].stack_size)
     end
     if e.element == children[count - 1] then
         if e.element.elem_value then
@@ -248,36 +250,38 @@ tools.on_named_event(np("overflow_item"), defines.events.on_gui_elem_changed, on
 
 ---@param player LuaPlayer
 function overflowlib.save(player)
-	local vars = get_vars(player)
+    local vars = get_vars(player)
 
-	---@type IOPoint
-	local iopoint = vars.selected_iopoint
-	if not iopoint or not iopoint.container or not iopoint.container.valid then return end
+    ---@type IOPoint
+    local iopoint = vars.selected_iopoint
+    if not iopoint or not iopoint.container or not iopoint.container.valid then return end
 
-	local frame = player.gui.left[commons.overflow_panel_name]
-	if not frame then return end
+    local frame = player.gui.left[commons.overflow_panel_name]
+    if not frame then return end
 
-	local request_table = tools.get_child(frame, np("overflow_table"))
-	if request_table ~= nil then
-		---@type table<string, integer>
-		local overflows = {}
+    local request_table = tools.get_child(frame, np("overflow_table"))
+    if request_table ~= nil then
+        ---@type table<string, integer>
+        local overflows = {}
 
-		local children = request_table.children
-		local index = 1
-		while index <= #children do
-			local f_item = children[index]
-			local f_count = children[index + 1]
-			local item = f_item.elem_value
-			local tcount = f_count.text
-			local count = tonumber(tcount)
+        local children = request_table.children
+        local index = 1
+        while index <= #children do
+            local f_item = children[index]
+            local f_count = children[index + 1]
+            local item = f_item.elem_value
+            local qname = tools.item_to_string(item)
+            ---@cast qname -nil
+            local tcount = f_count.text
+            local count = tonumber(tcount)
 
-			if count and item then
-                overflows[item] = count
-			end
-			index = index + 2
-		end
+            if count and item then
+                overflows[qname] = count
+            end
+            index = index + 2
+        end
         iopoint.overflows = overflows
-	end
+    end
 end
 
 return overflowlib

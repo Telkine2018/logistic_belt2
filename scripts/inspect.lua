@@ -48,7 +48,7 @@ local function get_frame(player)
             name = np("close"),
             style = "frame_action_button",
             mouse_button_filter = { "left" },
-            sprite = "utility/close_white",
+            sprite = "utility/close",
             hovered_sprite = "utility/close_black"
         }
 
@@ -67,21 +67,20 @@ end
 
 local button_style = commons.prefix .. "_slot_button_default"
 
----@param item_table {item:string}[]
+---@param item_table {qname:string}[]
 local function sort_item_table(item_table)
     local order_map = {}
-    local function get_order(item)
-        local order = order_map[item]
+    local function get_order(name)
+        local order = order_map[name]
         if order then return order end
-
-        local proto = game.item_prototypes[item]
+        local proto = prototypes.item[name]
         order = proto.group.order .. "  " .. proto.subgroup.order .. "  " .. proto.order
-        order_map[item] = order
+        order_map[name] = order
         return order
     end
     table.sort(item_table, function(e1, e2)
-        local order1 = get_order(e1.item)
-        local order2 = get_order(e2.item)
+        local order1 = get_order(e1.name)
+        local order2 = get_order(e2.name)
         return order1 < order2
     end)
 end
@@ -89,11 +88,10 @@ end
 ---@param map table<string, any>
 local function sort_contents(map)
     local result = {}
-    for item, value in pairs(map) do
-        table.insert(result, {
-            item = item,
-            value = value
-        })
+    for qname, count in pairs(map) do
+        local item = tools.string_to_item(qname)
+        ---@cast item -nil
+        table.insert(result, { name = item.name, quality = item.quality, count = count })
     end
     sort_item_table(result)
     return result
@@ -108,9 +106,9 @@ local function show_content(frame, contents)
     for _, e in pairs(list) do
         local button = signal_table.add {
             type      = "choose-elem-button",
-            elem_type = "item",
-            item      = e.item
+            elem_type = "item-with-quality"
         }
+        button.elem_value = e
         button.locked = true
         button.style.margin = 0
         button.style = button_style
@@ -120,7 +118,7 @@ local function show_content(frame, contents)
             name = "label1",
             style = "count_label_bottom",
             ignored_by_interaction = true,
-            caption = util.format_number(e.value, true)
+            caption = util.format_number(e.count, true)
         }
     end
 end
@@ -135,9 +133,12 @@ end
 ---@param node Node
 local function show_requests(frame, node)
     local result = {}
-    for item, request in pairs(node.requested) do
+    for qname, request in pairs(node.requested) do
+        local item = tools.string_to_item(qname)
+        ---@cast item -nil
         table.insert(result, {
-            item = item,
+            name = item.name,
+            quality = item.quality,
             request = request
         })
     end
@@ -145,9 +146,8 @@ local function show_requests(frame, node)
 
     ---@type LuaGuiElement
     local signal_table
-    for _, value in pairs(result) do
-        local item = value.item
-        local request = value.request
+    for _, element in pairs(result) do
+        local request = element.request
 
         if not signal_table then
             frame.add { type = "line" }
@@ -158,9 +158,9 @@ local function show_requests(frame, node)
 
         local button = signal_table.add {
             type      = "choose-elem-button",
-            elem_type = "item",
-            item      = item
+            elem_type = "item-with-quality"
         }
+        button.elem_value = { name = element.name, quality = element.quality }
         button.style = button_style
         button.style.margin = 0
 
@@ -191,9 +191,7 @@ function inspectlib.show(player, entity)
     end
 
 
-    local context = structurelib.get_context()
     if locallib.container_type_map[entity.type] and not locallib.excluded_containers[entity.name] then
-
         local node = structurelib.get_node(entity)
         if not node then
             inspectlib.close(player)
@@ -201,7 +199,7 @@ function inspectlib.show(player, entity)
         end
 
         local inner_frame = get_frame(player)
-    
+
         local msg = { "", "Node(" .. node.id .. ") " }
         if node.disabled then
             table.insert(msg, "[img=" .. prefix .. "_stopped]")
@@ -217,7 +215,7 @@ function inspectlib.show(player, entity)
         local all_requests = nodelib.get_requests(node)
         if next(all_requests) then
             inner_frame.add { type = "line" }
-            inner_frame.add { type = "label", caption = {np("unsatisfied_requests")} }
+            inner_frame.add { type = "label", caption = { np("unsatisfied_requests") } }
             show_content(inner_frame, all_requests)
         end
 
@@ -259,8 +257,10 @@ function inspectlib.show(player, entity)
             local input_content = {}
             for _, input in pairs(node.inputs) do
                 local contents = input.inventory.get_contents()
-                for item, count in pairs(contents) do
-                    input_content[item] = (input_content[item] or 0) + count
+                for _, item in pairs(contents) do
+                    local qname = tools.item_to_string(item)
+                    ---@cast qname -nil
+                    input_content[qname] = (input_content[qname] or 0) + item.count
                 end
             end
             if next(input_content) then
@@ -274,8 +274,10 @@ function inspectlib.show(player, entity)
             local output_content = {}
             for _, output in pairs(node.outputs) do
                 local contents = output.inventory.get_contents()
-                for item, count in pairs(contents) do
-                    output_content[item] = (output_content[item] or 0) + count
+                for _, item in pairs(contents) do
+                    local qname = tools.item_to_string(item)
+                    ---@cast qname -nil
+                    output_content[qname] = (output_content[qname] or 0) + item.count
                 end
             end
             if next(output_content) then

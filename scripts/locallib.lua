@@ -190,17 +190,17 @@ function locallib.restore_saved_parameters(entity, parameters)
 	local cb = entity.get_or_create_control_behavior() --[[@as LuaInserterControlBehavior]]
 	local found = false
 	local condition = cb.circuit_condition
-	if condition then
+	if condition and condition.condition then
 		local old_id = condition.condition.constant
 		if old_id then
-			if global.saved_parameters then
-				local p = global.saved_parameters[old_id]
+			if storage.saved_parameters then
+				local p = storage.saved_parameters[old_id]
 				if p then
 					debug("Found saved parameters")
 					parameters = p
-					global.parameters[entity.unit_number] = p
+					storage.parameters[entity.unit_number] = p
 					found = true
-					global.saved_parameters[old_id] = nil
+					storage.saved_parameters[old_id] = nil
 				end
 			end
 		end
@@ -241,7 +241,7 @@ function locallib.add_title(frame, caption, close_button_name)
 		type = "sprite-button",
 		name = close_button_name,
 		style = "frame_action_button",
-		sprite = "utility/close_white",
+		sprite = "utility/close",
 		mouse_button_filter = { "left" }
 	}
 end
@@ -275,10 +275,10 @@ tools.on_gui_click(prefix .. "_close_button", locallib.on_gui_closed)
 ---@param create boolean?
 ---@return Parameters
 function locallib.get_parameters(master, create)
-	local all = global.parameters
+	local all = storage.parameters
 	if not all then
 		all = {}
-		global.parameters = all
+		storage.parameters = all
 	end
 	local parameters = all[master.unit_number]
 	if not parameters and create then
@@ -291,10 +291,10 @@ end
 ---@param device LuaEntity
 ---@param add_neighbors boolean?
 function locallib.add_monitored_device(device, add_neighbors)
-	if not global.monitored_devices then
-		global.monitored_devices = {}
+	if not storage.monitored_devices then
+		storage.monitored_devices = {}
 	end
-	global.monitored_devices[device.unit_number] = device
+	storage.monitored_devices[device.unit_number] = device
 	if tools.tracing then
 		debug("ADD Monitored device: " .. tools.strip(device.position))
 	end
@@ -303,16 +303,16 @@ function locallib.add_monitored_device(device, add_neighbors)
 		local iopoint = context.iopoints[device.unit_number]
 		if iopoint then
 			for _, other in pairs(iopoint.connection.inputs) do
-				global.monitored_devices[other.id] =  other.device
+				storage.monitored_devices[other.id] =  other.device
 			end
 			for _, other in pairs(iopoint.connection.outputs) do
-				global.monitored_devices[other.id] =  other.device
+				storage.monitored_devices[other.id] =  other.device
 			end
 		end
 	end
-	global.monitoring = true
-	global.structure_changed = true
-	global.monitored_delay = nil
+	storage.monitoring = true
+	storage.structure_changed = true
+	storage.monitored_delay = nil
 	local context = locallib.get_context()
 	context.structure_tick = game.tick
 end
@@ -370,33 +370,34 @@ function locallib.adjust_direction(device)
 	local position = device.position
 	local front_pos = get_front(direction, position)
 
+	local opposite     = get_opposite_direction(direction) --[[@as defines.direction]]
+	local opposite_pos = get_front(opposite, position)
+
 	-- device.direction => belt
 	local entities = device.surface.find_entities_filtered { position = front_pos, type = locallib.belt_types }
 	if (#entities > 0) then
-		debug("no change direction")
-		return true, false
+		device.direction = opposite
+		debug("invert direction:" .. opposite)
+		return true, true
 	end
 
-	local opposite     = get_opposite_direction(direction) --[[@as defines.direction]]
-	local opposite_pos = get_front(opposite, position)
 	entities           = device.surface.find_entities_filtered { position = opposite_pos, type = locallib.belt_types }
 	if (#entities > 0) then
-		debug("invert direction:" .. opposite)
-		device.direction = opposite
-		return true, true
+		debug("no change direction")
+		return true, false
 	end
 
 	entities = device.surface.find_entities_filtered { position = front_pos, type = locallib.container_types }
 	if (#entities > 0) then
-		debug("invert direction (container):" .. opposite)
-		device.direction = opposite
-		return true, true
+		debug("no change direction")
+		return true, false
 	end
 
 	entities = device.surface.find_entities_filtered { position = opposite_pos, type = locallib.container_types }
 	if (#entities > 0) then
-		debug("no change direction")
-		return true, false
+		device.direction = opposite
+		debug("invert direction (container):" .. opposite)
+		return true, true
 	end
 
 	debug("no entities found")
@@ -419,7 +420,7 @@ end
 function locallib.get_belt_speed(entity)
 	-- device.direction => belt
 	local entities = entity.surface.find_entities_filtered {
-		position = tools.get_front(entity.direction, entity.position),
+		position = tools.get_back(entity.direction, entity.position),
 		type = locallib.belt_and_loader_types
 	}
 	if (#entities == 0) then

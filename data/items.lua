@@ -62,41 +62,41 @@ data:extend {
 		name = commons.device_name,
 		enabled = false,
 		ingredients = {
-			{ 'electronic-circuit', 1 },
-			{ 'iron-plate',         2 },
-			{ 'iron-gear-wheel',    2 }
+			{ type = "item", name = 'electronic-circuit', amount = 1 },
+			{ type = "item", name = 'iron-plate',         amount = 2 },
+			{ type = "item", name = 'iron-gear-wheel',    amount = 2 }
 		},
-		result = commons.device_name
+		results = { { type = 'item', name = commons.device_name, amount = 1 } }
 	},
 	{ type = 'recipe',
 		name = commons.sushi_name,
 		enabled = false,
 		ingredients = {
-			{ 'electronic-circuit', 1 },
-			{ 'iron-plate',         2 },
-			{ 'iron-gear-wheel',    2 }
+			{ type = "item", name = 'electronic-circuit', amount = 1 },
+			{ type = "item", name = 'iron-plate',         amount = 2 },
+			{ type = "item", name = 'iron-gear-wheel',    amount = 2 }
 		},
-		result = commons.sushi_name
+		results = { { type = 'item', name = commons.sushi_name, amount = 1 } }
 	},
 	{ type = 'recipe',
 		name = commons.overflow_name,
 		enabled = false,
 		ingredients = {
-			{ 'electronic-circuit', 1 },
-			{ 'iron-plate',         2 },
-			{ 'iron-gear-wheel',    2 }
+			{ type = "item", name = 'electronic-circuit', amount = 1 },
+			{ type = "item", name = 'iron-plate',         amount = 2 },
+			{ type = "item", name = 'iron-gear-wheel',    amount = 2 }
 		},
-		result = commons.overflow_name
+		results = { { type = 'item', name = commons.overflow_name, amount = 1 } }
 	},
 	{ type = 'recipe',
 		name = commons.uploader_name,
 		enabled = false,
 		ingredients = {
-			{ 'electronic-circuit', 1 },
-			{ 'iron-plate',         2 },
-			{ 'iron-gear-wheel',    2 }
+			{ type = "item", name = 'electronic-circuit', amount = 1 },
+			{ type = "item", name = 'iron-plate',         amount = 2 },
+			{ type = "item", name = 'iron-gear-wheel',    amount = 2 }
 		},
-		result = commons.uploader_name
+		results = { { type = 'item', name = commons.uploader_name, amount = 1 } }
 	},
 
 	-- Technology
@@ -121,17 +121,17 @@ data:extend {
 		icon = png('router-tech-1'),
 		prerequisites = { prefix .. '-tech' },
 		unit = {
-			count_formula  = "1000 * 2^L",
-			ingredients = {
-				{"automation-science-pack", 1},
-				{"logistic-science-pack", 1},
-				{"chemical-science-pack", 1},
-				{"production-science-pack", 1},
-				{"utility-science-pack", 1}
+			count_formula = "1000 * 2^L",
+			ingredients   = {
+				{ "automation-science-pack", 1 },
+				{ "logistic-science-pack",   1 },
+				{ "chemical-science-pack",   1 },
+				{ "production-science-pack", 1 },
+				{ "utility-science-pack",    1 }
 			},
-			time = 60
+			time          = 60
 		},
-		max_level = 5,
+		max_level = 10,
 		upgrade = true,
 		order = 'a-d-d-z',
 		effects = {}

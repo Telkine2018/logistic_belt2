@@ -1,4 +1,3 @@
-
 local commons = require("scripts.commons")
 local tools = require("scripts.tools")
 
@@ -37,11 +36,11 @@ if use_router then
 			name = prefix .. '-router',
 			enabled = false,
 			ingredients = {
-				{ 'electronic-circuit', 3 },
-				{ 'iron-plate', 3 },
-				{ 'iron-gear-wheel', 1 }
+				{ type = "item", name = 'electronic-circuit', amount = 3 },
+				{ type = "item", name = 'iron-plate',         amount = 3 },
+				{ type = "item", name = 'iron-gear-wheel',    amount = 1 }
 			},
-			result = prefix .. '-router'
+			results = { { type = "item", name = prefix .. '-router', amount = 1 } }
 		}
 	}
 end
@@ -50,11 +49,11 @@ end
 
 local commons_attr = {
 
-	flags = { "hidden", "hide-alt-info", "not-on-map", "not-blueprintable", "not-deconstructable", "not-upgradable",
+	flags = { "hide-alt-info", "not-on-map", "not-blueprintable", "not-deconstructable", "not-upgradable",
 		"placeable-off-grid" },
 	collision_box = { { -0.05, -0.05 }, { 0.05, 0.05 } },
 	selection_box = { { -0.05, -0.05 }, { 0.05, 0.05 } },
-	collision_mask = {},
+	collision_mask = { layers = {} },
 	selectable_in_game = commons.debug_mode
 }
 
@@ -70,10 +69,8 @@ data:extend { chest }
 local router = table.deepcopy(data.raw["linked-container"]["linked-chest"])
 
 router.name = commons.router_name
-router.picture.layers[1].filename = png("entity/router")
-router.picture.layers[1].hr_version.filename = png("entity/hr-router")
-router.picture.layers[2].filename = png("entity/router-shadow")
-router.picture.layers[2].hr_version.filename = png("entity/hr-router-shadow")
+router.picture.layers[1].filename = png("entity/hr-router")
+router.picture.layers[2].filename = png("entity/hr-router-shadow")
 router.collision_box = { { -0.1, -0.1 }, { 0.1, 0.1 } }
 router.selection_box = { { -0.5, -0.5 }, { 0.5, 0.5 } }
 router.inventory_size = settings.startup[commons.np("router_inventory_size")].value

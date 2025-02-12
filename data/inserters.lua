@@ -22,7 +22,7 @@ local empty_sheet = {
   y = 0
 }
 
-local connector_definitions = circuit_connector_definitions.create(
+local connector_definitions = circuit_connector_definitions.create_vector(
   universal_connector_template,
   {
     { variation = 24, main_offset = util.by_pixel(-17, 0), shadow_offset = util.by_pixel(10, -0.5), show_shadow = false },
@@ -52,7 +52,7 @@ local function create_inserters()
     },
     minable = { mining_time = 0.1, result = prefix .. "-device" },
     collision_box = { { -0.2, -0.2 }, { 0.2, 0.2 } },
-    collision_mask = { "floor-layer", "object-layer", "water-tile" },
+    collision_mask = { layers = { ["floor"] = true, ["object"] = true, ["water_tile"] = true } },
     selection_box = { { -0.5, -0.5 }, { 0.5, 0.5 } },
     selection_priority = 50,
     allow_custom_vectors = true,
@@ -74,37 +74,22 @@ local function create_inserters()
       sheets = {
         -- Base
         {
-          filename   = png("entity/device"),
-          width      = 96,
-          height     = 96,
-          y          = 96,
-          hr_version =
-          {
-            filename = png("entity/hr-device"),
-            height   = 192,
-            priority = "extra-high",
-            scale    = 0.5,
-            width    = 192,
-            y        = 192
-          }
+          filename = png("entity/hr-device"),
+          height   = 192,
+          priority = "extra-high",
+          scale    = 0.5,
+          width    = 192,
+          y        = 192
         },
         -- Shadow
         {
-          filename       = png("entity/device-shadow"),
-          width          = 96,
-          height         = 96,
-          y              = 96,
+          filename       = png("entity/hr-device-shadow"),
+          height         = 192,
+          priority       = "extra-high",
+          scale          = 0.5,
+          width          = 192,
+          y              = 192,
           draw_as_shadow = true,
-          hr_version     =
-          {
-            filename       = png("entity/hr-device-shadow"),
-            height         = 192,
-            priority       = "extra-high",
-            scale          = 0.5,
-            width          = 192,
-            y              = 192,
-            draw_as_shadow = true,
-          }
         }
       }
     },
@@ -125,18 +110,14 @@ local function create_inserters()
   local sushi_inserter = table.deepcopy(device_inserter)
   sushi_inserter.name = prefix .. "-sushi"
   sushi_inserter.minable = { mining_time = 0.1, result = prefix .. "-sushi" }
-  sushi_inserter.platform_picture.sheets[1].filename = png("entity/sushi")
-  sushi_inserter.platform_picture.sheets[1].hr_version.filename = png("entity/hr-sushi")
-  sushi_inserter.platform_picture.sheets[2].filename = png("entity/sushi-shadow")
-  sushi_inserter.platform_picture.sheets[2].hr_version.filename = png("entity/hr-sushi-shadow")
+  sushi_inserter.platform_picture.sheets[1].filename = png("entity/hr-sushi")
+  sushi_inserter.platform_picture.sheets[2].filename = png("entity/hr-sushi-shadow")
 
   local overflow_inserter = table.deepcopy(device_inserter)
   overflow_inserter.name = commons.overflow_name
   overflow_inserter.minable = { mining_time = 0.1, result = commons.overflow_name }
-  overflow_inserter.platform_picture.sheets[1].filename = png("entity/overflow")
-  overflow_inserter.platform_picture.sheets[1].hr_version.filename = png("entity/hr-overflow")
-  overflow_inserter.platform_picture.sheets[2].filename = png("entity/device-shadow")
-  overflow_inserter.platform_picture.sheets[2].hr_version.filename = png("entity/hr-device-shadow")
+  overflow_inserter.platform_picture.sheets[1].filename = png("entity/hr-overflow")
+  overflow_inserter.platform_picture.sheets[2].filename = png("entity/hr-device-shadow")
 
 
   local copy_inserter = table.deepcopy(device_inserter)
@@ -148,7 +129,6 @@ local function create_inserters()
   table.insert(copy_inserter.flags, "not-rotatable")
   if not debug_mode then
     copy_inserter.selection_box = nil
-    table.insert(copy_inserter.flags, "hidden")
     table.insert(copy_inserter.flags, "hide-alt-info")
     table.insert(copy_inserter.flags, "not-on-map")
   end
@@ -179,7 +159,7 @@ local function create_loaders()
   device_loader.localised_name = { "entity-name." .. device_loader_name }
   device_loader.minable = nil
   device_loader.collision_box = { { -0.3, -0.3 }, { 0.3, 0.3 } }
-  device_loader.collision_mask = { "transport-belt-layer" }
+  device_loader.collision_mask = { layers = { ["transport_belt"] = true } }
   device_loader.selection_box = { { 0, 0 }, { 0, 0 } }
   device_loader.filter_count = 0
   device_loader.fast_replaceable_group = nil
@@ -189,70 +169,40 @@ local function create_loaders()
     direction_in = {
       sheets = {
         {
-          filename   = png("entity/device"),
-          width      = 96,
-          height     = 96,
-          y          = 96,
-          hr_version =
-          {
-            filename = png("entity/hr-device"),
-            height   = 192,
-            scale    = 0.5,
-            width    = 192,
-            y        = 192
-          }
+          filename = png("entity/hr-device"),
+          height   = 192,
+          scale    = 0.5,
+          width    = 192,
+          y        = 192
         },
         -- Shadow
         {
-          filename       = png("entity/device-shadow"),
-          width          = 96,
-          height         = 96,
-          y              = 96,
+          filename       = png("entity/hr-device-shadow"),
+          height         = 192,
+          scale          = 0.5,
+          width          = 192,
+          y              = 192,
           draw_as_shadow = true,
-          hr_version     =
-          {
-            filename       = png("entity/hr-device-shadow"),
-            height         = 192,
-            scale          = 0.5,
-            width          = 192,
-            y              = 192,
-            draw_as_shadow = true,
-          }
         }
       }
     },
     direction_out = {
       sheets = {
         {
-          filename   = png("entity/device"),
-          width      = 96,
-          height     = 96,
-          y          = 96,
-          hr_version =
-          {
-            filename = png("entity/hr-device"),
-            height   = 192,
-            scale    = 0.5,
-            width    = 192,
-            y        = 192
-          }
+          filename = png("entity/hr-device"),
+          height   = 192,
+          scale    = 0.5,
+          width    = 192,
+          y        = 192
         },
         -- Shadow
         {
-          filename       = png("entity/device-shadow"),
-          width          = 96,
-          height         = 96,
-          y              = 96,
+          filename       = png("entity/hr-device-shadow"),
+          height         = 192,
+          scale          = 0.5,
+          width          = 192,
+          y              = 192,
           draw_as_shadow = true,
-          hr_version     =
-          {
-            filename       = png("entity/hr-device-shadow"),
-            height         = 192,
-            scale          = 0.5,
-            width          = 192,
-            y              = 192,
-            draw_as_shadow = true,
-          }
         }
       }
     },
@@ -282,22 +232,16 @@ local function create_loaders()
   local sushi_loader = table.deepcopy(device_loader)
   sushi_loader.name = sushi_loader_name
   sushi_loader.speed = inserter_speed
-  sushi_loader.structure.direction_in.sheets[1].filename = png("entity/sushi")
-  sushi_loader.structure.direction_in.sheets[1].hr_version.filename = png("entity/hr-sushi")
-  sushi_loader.structure.direction_in.sheets[2].filename = png("entity/sushi-shadow")
-  sushi_loader.structure.direction_in.sheets[2].hr_version.filename = png("entity/hr-sushi-shadow")
-  sushi_loader.structure.direction_out.sheets[1].filename = png("entity/sushi")
-  sushi_loader.structure.direction_out.sheets[1].hr_version.filename = png("entity/hr-sushi")
-  sushi_loader.structure.direction_out.sheets[2].filename = png("entity/sushi-shadow")
-  sushi_loader.structure.direction_out.sheets[2].hr_version.filename = png("entity/hr-sushi-shadow")
+  sushi_loader.structure.direction_in.sheets[1].filename = png("entity/hr-sushi")
+  sushi_loader.structure.direction_in.sheets[2].filename = png("entity/hr-sushi-shadow")
+  sushi_loader.structure.direction_out.sheets[1].filename = png("entity/hr-sushi")
+  sushi_loader.structure.direction_out.sheets[2].filename = png("entity/hr-sushi-shadow")
 
   local overflow_loader = table.deepcopy(device_loader)
   overflow_loader.name = commons.overflow_loader_name
   overflow_loader.speed = inserter_speed
-  overflow_loader.structure.direction_in.sheets[1].filename = png("entity/overflow")
-  overflow_loader.structure.direction_in.sheets[1].hr_version.filename = png("entity/hr-overflow")
-  overflow_loader.structure.direction_out.sheets[1].filename = png("entity/overflow")
-  overflow_loader.structure.direction_out.sheets[1].hr_version.filename = png("entity/hr-overflow")
+  overflow_loader.structure.direction_in.sheets[1].filename = png("entity/hr-overflow")
+  overflow_loader.structure.direction_out.sheets[1].filename = png("entity/hr-overflow")
 
   data:extend {
     device_loader, sushi_loader, overflow_loader
@@ -314,17 +258,18 @@ local function create_uploaders()
   entity.flags = {
     "placeable-neutral",
     "player-creation",
-    "fast-replaceable-no-build-while-moving"
   }
   entity.localised_name = { "entity-name." .. name }
   entity.minable = { mining_time = 0.2, result = name }
   entity.collision_box = { { -0.26, -0.26 }, { 0.26, 0.26 } }
   entity.collision_mask = {
-    "item-layer",
-    "object-layer",
-    "player-layer",
-    "water-tile",
-    "transport-belt-layer"
+    layers = {
+      ["item"] = true,
+      ["object"] = true,
+      ["player"] = true,
+      ["water_tile"] = true,
+      ["transport_belt"] = true
+    }
   }
 
   entity.selection_box = { { -0.5, -0.5 }, { 0.5, 0.5 } }
@@ -337,70 +282,40 @@ local function create_uploaders()
     direction_in = {
       sheets = {
         {
-          filename   = png("entity/uploader"),
-          width      = 96,
-          height     = 96,
-          y          = 96,
-          hr_version =
-          {
-            filename = png("entity/hr-uploader"),
-            height   = 192,
-            scale    = 0.5,
-            width    = 192,
-            y        = 192
-          }
+          filename = png("entity/hr-uploader"),
+          height   = 192,
+          scale    = 0.5,
+          width    = 192,
+          y        = 192
         },
         -- Shadow
         {
-          filename       = png("entity/uploader-shadow"),
-          width          = 96,
-          height         = 96,
-          y              = 96,
+          filename       = png("entity/hr-uploader-shadow"),
+          height         = 192,
+          scale          = 0.5,
+          width          = 192,
+          y              = 192,
           draw_as_shadow = true,
-          hr_version     =
-          {
-            filename       = png("entity/hr-uploader-shadow"),
-            height         = 192,
-            scale          = 0.5,
-            width          = 192,
-            y              = 192,
-            draw_as_shadow = true,
-          }
         }
       }
     },
     direction_out = {
       sheets = {
         {
-          filename   = png("entity/uploader"),
-          width      = 96,
-          height     = 96,
-          y          = 96,
-          hr_version =
-          {
-            filename = png("entity/hr-uploader"),
-            height   = 192,
-            scale    = 0.5,
-            width    = 192,
-            y        = 192
-          }
+          filename = png("entity/hr-uploader"),
+          height   = 192,
+          scale    = 0.5,
+          width    = 192,
+          y        = 192
         },
         -- Shadow
         {
-          filename       = png("entity/uploader-shadow"),
-          width          = 96,
-          height         = 96,
-          y              = 96,
+          filename       = png("entity/hr-uploader-shadow"),
+          height         = 192,
+          scale          = 0.5,
+          width          = 192,
+          y              = 192,
           draw_as_shadow = true,
-          hr_version     =
-          {
-            filename       = png("entity/hr-uploader-shadow"),
-            height         = 192,
-            scale          = 0.5,
-            width          = 192,
-            y              = 192,
-            draw_as_shadow = true,
-          }
         }
       }
     },
