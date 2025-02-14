@@ -127,6 +127,7 @@ local function process_monitored_object()
 				storage.monitored_devices = nil
 				goto node_scan
 			end
+			---@cast key -nil
 			monitored_devices[key] = nil
 
 			if not done_map[key] then
@@ -203,7 +204,7 @@ local function process_monitored_object()
 					end
 					if node then
 						for _, request in pairs(parameters.request_table) do
-							nodelib.add_request(node, request.item, request.count, nil, node.requested)
+							nodelib.add_request(node, request.item, request.count, request.count / 2, node.requested)
 						end
 					end
 				end
@@ -384,7 +385,7 @@ script.on_event(defines.events.script_raised_destroy, on_mined, mine_filter)
 local function delete_all_from_surface(surface_index)
 	local context = structurelib.get_context()
 
-	---@type table<string, IOPoint[]>
+	---@type table<integer, IOPoint[]>
 	local iopoints_to_delete = {}
 	for id, iopoint in pairs(context.iopoints) do
 		if iopoint.device.valid and iopoint.device.surface_index == surface_index then

@@ -114,32 +114,32 @@ function sushilib.rebuild_sushi(player, sushi)
 
 	sushilib.copy_sushi_items_to_filter(sushi, parameters)
 
-	-- Base cc
+	-- Base cca
 	local cc = locallib.create_combinator(sushi, "cc")
 	local cb = cc.get_or_create_control_behavior() --[[@as LuaConstantCombinatorControlBehavior]]
-	cb.add_section().set_slot(1, { { value = { type = "virtual", name = "signal-A" }, min = 1, max = 1 } })
+	cb.get_section(1).set_slot(1, { value = { type = "virtual", name = "signal-A", comparator = "=", quality = "normal" }, min = 1, max = 1 })
 
 	---@return LuaEntity
 	local function create_counter()
 		local counter = locallib.create_combinator(sushi, "dc")
 		local cb = counter.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 
-		cb.add_condition {
+		cb.set_condition(1, {
 			first_signal = { type = "virtual", name = "signal-A" },
 			second_signal = nil,
 			constant = 0,
 			comparator = "<"
-		}
+		})
 
-		cb.add_output {
-			output_signal = { type = "virtual", name = "signal-everything" },
+		cb.set_output(1, {
+			signal = { type = "virtual", name = "signal-A" },
 			copy_count_from_input = true
-		}
+		})
 
 		cc.get_wire_connector(defines.wire_connector_id.circuit_red, true).connect_to(
-				counter.get_wire_connector(defines.wire_connector_id.combinator_input_red, true))
-		counter.get_wire_connector(defines.wire_connector_id.combinator_output_red, true).connect_to(	
-				counter.get_wire_connector(defines.wire_connector_id.combinator_input_red, true))
+			counter.get_wire_connector(defines.wire_connector_id.combinator_input_red, true))
+		counter.get_wire_connector(defines.wire_connector_id.combinator_output_green, true).connect_to(
+			counter.get_wire_connector(defines.wire_connector_id.combinator_input_green, true))
 		return counter
 	end
 
@@ -159,15 +159,17 @@ function sushilib.rebuild_sushi(player, sushi)
 	---@param item_interval integer
 	---@return integer
 	local function create_sushi_lane(lane_items, lane_position, counter, item_interval)
-		local total_decal = 1
+		local inserter_index = 0
 		if lane_items then
-			if #lane_items == 1 and slow == 1 then
+			if table_size(lane_items) == 1 and slow == 1 then
 				local inserter_count = locallib.get_inserter_count_from_speed(speed or (1.0 / locallib.BELT_SPEED_FOR_60_PER_SECOND))
 				inserters = locallib.create_inserters(sushi, sushi.direction, lane_position, inserter_count, filter_name)
 				for _, inserter in pairs(inserters) do
 					local item = tools.string_to_filter(lane_items[1])
 					inserter.set_filter(1, item)
+					inserter.use_filters = true
 				end
+				inserter_index = 1
 			else
 				inserters = locallib.create_inserters(sushi, sushi.direction, lane_position, #lane_items, filter_name)
 				for index, inserter in pairs(inserters) do
@@ -178,51 +180,57 @@ function sushilib.rebuild_sushi(player, sushi)
 					else
 						inserter.inserter_stack_size_override = stack_size
 						inserter.set_filter(1, tools.string_to_filter(lane_item))
+						local insert_decal        = math.floor(1 + slow * inserter_index * tick_decal)
+						inserter.use_filters      = true
+
 						local cb                  = inserter.get_or_create_control_behavior() --[[@as LuaInserterControlBehavior]]
 						cb.circuit_enable_disable = true
 						cb.circuit_condition      = {
-							condition = {
-								comparator = "=",
-								first_signal = { type = "virtual", name = "signal-A" },
-								constant = math.floor(slow * total_decal)
-							}
+							comparator = "=",
+							first_signal = { type = "virtual", name = "signal-A" },
+							constant = insert_decal
 						}
 
 						counter.get_wire_connector(defines.wire_connector_id.combinator_output_red, true)
 							.connect_to(inserter.get_wire_connector(defines.wire_connector_id.circuit_red, true), false)
 					end
-					debug("DECAL[" .. index .. "]" .. total_decal)
-					total_decal = total_decal + tick_decal
+					debug("DECAL[" .. index .. "]" .. inserter_index)
+					inserter_index = inserter_index + 1
 					if item_interval and item_interval > 0 then
-						total_decal = total_decal + item_interval
+						inserter_index = inserter_index + item_interval
 					end
 				end
 			end
 		end
 
-		debug("TOTAL DECAL:" .. total_decal)
-		return total_decal
+		debug("TOTAL DECAL:" .. inserter_index)
+		return math.ceil(1 + slow * inserter_index * tick_decal)
 	end
 
-	if parameters.lane1_items then
-		local counter1 = create_counter()
-		local decal1 = create_sushi_lane(parameters.lane1_items, { locallib.sushi_positions[1][1] }, counter1,
+	local counter1
+	local cb1
+	if parameters.lane1_items and table_size(parameters.lane1_items) then
+		counter1 = create_counter()
+		local decal = create_sushi_lane(parameters.lane1_items, { locallib.sushi_positions[1][1] }, counter1,
 			parameters.lane1_item_interval)
-		local cb1 = counter1.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
+		cb1 = counter1.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 
 		local condition = cb1.get_condition(1)
-		condition.constant = math.floor(slow * decal1)
+		condition.constant = decal
 		cb1.set_condition(1, condition)
+		sushi.get_wire_connector(defines.wire_connector_id.circuit_red, true)
+			.connect_to(counter1.get_wire_connector(defines.wire_connector_id.combinator_output_red, true))
 	end
 
-	if parameters.lane2_items then
-		local counter2 = create_counter()
-		local decal2 = create_sushi_lane(parameters.lane2_items, { locallib.sushi_positions[1][2] }, counter2,
+	local counter2
+	if parameters.lane2_items and table_size(parameters.lane2_items) > 0 then
+		counter2 = create_counter()
+		local decal = create_sushi_lane(parameters.lane2_items, { locallib.sushi_positions[1][2] }, counter2,
 			parameters.lane2_item_interval)
 		local cb2 = counter2.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
-		
+
 		local condition = cb2.get_condition(1)
-		condition.constant = math.floor(slow * decal2)
+		condition.constant = decal
 		cb2.set_condition(1, condition)
 	end
 	return true
