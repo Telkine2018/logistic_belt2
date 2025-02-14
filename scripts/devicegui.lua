@@ -49,6 +49,7 @@ local function add_request_field(request_flow)
 	local item_field = request_flow.add {
 		type = "choose-elem-button",
 		elem_type = "item-with-quality",
+		tooltip = { np("request_item_tooltip") }
 	}
 	local wfield = 70
 	tools.set_name_handler(item_field, np("request_item"))
@@ -78,7 +79,8 @@ end
 local function add_provide_field(request_flow)
 	local item_field = request_flow.add {
 		type = "choose-elem-button",
-		elem_type = "item-with-quality"
+		elem_type = "item-with-quality",
+		tooltip = { np("provided_item_tooltip") }
 	}
 	tools.set_name_handler(item_field, np("provide_item"))
 	return item_field
@@ -88,7 +90,8 @@ end
 local function add_restrictions_field(request_flow)
 	local item_field = request_flow.add {
 		type = "choose-elem-button",
-		elem_type = "item-with-quality"
+		elem_type = "item-with-quality",
+		tooltip = { np("restrictions_label_tooltip") }
 	}
 	tools.set_name_handler(item_field, np("restrictions_item"))
 	return item_field
@@ -200,7 +203,7 @@ function devicegui.open(player, entity)
 	}
 
 	local flow = inner_frame.add { type = "flow", direction = "horizontal" }
-	local label = flow.add { type = "label", caption = { np("io_buffer_size") } }
+	local label = flow.add { type = "label", caption = { np("io_buffer_size") }, tooltip = { np("io_buffer_size_tooltip") } }
 	local slider = flow.add { type = "slider",
 		name = np("io_buffer_size"),
 		tooltip = tostring(node.buffer_size),
@@ -212,7 +215,10 @@ function devicegui.open(player, entity)
 
 	local flow = inner_frame.add { type = "flow", direction = "horizontal" }
 	label = flow.add { type = "label", caption = { np("priority") } }
-	local field = flow.add { type = "textfield", numeric = true, text = node.priority and tostring(node.priority) or "", name = np("priority") }
+	local field = flow.add { type = "textfield", numeric = true,
+		text = node.priority and tostring(node.priority) or "",
+		name = np("priority"), tooltip = { np("priority-tooltip") }
+	}
 	field.style.width = 40
 	flow.style.top_margin = 5
 
@@ -258,7 +264,7 @@ function devicegui.open(player, entity)
 	if node.provided then
 		for qname, _ in pairs(node.provided) do
 			local item_field      = add_provide_field(provide_flow)
-			local item = tools.string_to_item(qname)
+			local item            = tools.string_to_item(qname)
 			item_field.elem_value = item
 		end
 	end
@@ -275,13 +281,14 @@ function devicegui.open(player, entity)
 		type = "table",
 		style_mods = { margin = 10 },
 		column_count = 6,
-		name = np("restrictions_table")
+		name = np("restrictions_table"),
+		tooltip = np("restrictions_label_tooltip")
 	}
 
 	if node.restrictions then
 		for qname, _ in pairs(node.restrictions) do
 			local item_field      = add_restrictions_field(restrictions_flow)
-			local item = tools.string_to_item(qname)
+			local item            = tools.string_to_item(qname)
 			item_field.elem_value = item
 		end
 	end
@@ -299,7 +306,6 @@ function devicegui.open(player, entity)
 		state = not not node.cleaner }
 	field.style.left_margin = 10
 	flow.style.top_margin = 5
-
 end
 
 tools.on_gui_click(np("import-content"),
@@ -333,7 +339,7 @@ tools.on_gui_click(np("import-content"),
 				item_field.elem_value = item --[[@as SignalID ]]
 			end
 		end
-		add_provide_field(provide_table) 
+		add_provide_field(provide_table)
 	end)
 
 tools.on_gui_click(np("reset"),
@@ -446,7 +452,7 @@ local function save_node_parameters(player)
 	local priority = tools.get_child(frame, np("priority"))
 	---@cast priority -nil
 	local text = priority.text
-	selected_node.priority = text ~= "" and tonumber(text) 
+	selected_node.priority = text ~= "" and tonumber(text)
 
 	local provide_table = tools.get_child(frame, np("provide_table"))
 	if provide_table ~= nil then
@@ -541,7 +547,7 @@ local function on_request_item_changed(e)
 	local count = #children
 
 	if e.element.elem_value then
-		local index =  e.element.get_index_in_parent()
+		local index = e.element.get_index_in_parent()
 		local stack_size = prototypes.item[e.element.elem_value.name].stack_size
 		children[index + 1].text = tostring(stack_size)
 		children[index + 2].text = tostring(stacksize_to_delivery(stack_size))
@@ -967,7 +973,7 @@ local function on_shift_button1(e)
 		for _, ingredient in pairs(recipe.ingredients) do
 			if ingredient.type == "item" then
 				local name = ingredient.name
-				local qname = tools.item_to_string({name=name})
+				local qname = tools.item_to_string({ name = name })
 				local count = math.min(200, prototypes.item[name].stack_size)
 				if not requested then
 					requested = {}
