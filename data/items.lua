@@ -121,7 +121,7 @@ data:extend {
 		icon = png('router-tech-1'),
 		prerequisites = { prefix .. '-tech' },
 		unit = {
-			count_formula = "1000 * 2^L",
+			count_formula = "1000 + 2000 * L",
 			ingredients   = {
 				{ "automation-science-pack", 1 },
 				{ "logistic-science-pack",   1 },
@@ -131,7 +131,7 @@ data:extend {
 			},
 			time          = 60
 		},
-		max_level = 10,
+		max_level = 50,
 		upgrade = true,
 		order = 'a-d-d-z',
 		effects = {}
