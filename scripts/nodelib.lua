@@ -257,6 +257,7 @@ local function scan_network(device)
     ---@param output boolean?
     ---@return boolean
     local function add_to_scan(b, output)
+        local name = b.name
         if b.name == device_loader_name then
             if tools.tracing then
                 debug("Scan loader: " .. strip(b.position) .. ",direction=" .. b.direction)
@@ -452,11 +453,11 @@ function nodelib.rebuild_network(master, player)
     return true, is_ghost, ids
 end
 
----@param surface LuaSurface
----@param position MapPosition
+---@param device LuaEntity
 ---@return LuaEntity?
-local function find_container(surface, position)
-    local containers = surface.find_entities_filtered {
+local function find_container(device)
+    local position = get_front(device.direction, device.position)
+    local containers = device.surface.find_entities_filtered {
         position = position,
         type = locallib.container_types,
         radius = 5
@@ -477,34 +478,13 @@ end
 ---Move from container to belt
 ---@param iopoint IOPoint
 ---@param loader LuaEntity
----@param inserter_count integer
 ---@return LuaEntity?
-local function create_output_objects(iopoint, loader, inserter_count)
+local function create_output_objects(iopoint, loader)
     local device = iopoint.device
-    local surface = device.surface
-    local need_change = iopoint.is_output ~= true
     loader.loader_type = "output"
     iopoint.is_output = true
 
-    local container_position = get_front(device.direction, device.position)
-    local container = find_container(surface, container_position)
-    if not container then
-        return nil
-    end
-
-    local inserters = surface.find_entities_filtered { position = device.position, name = inserter_name }
-    if need_change or #inserters ~= 2 * inserter_count then
-        if #inserters > 0 then
-            for _, inserter in pairs(inserters) do
-                inserter.destroy()
-            end
-            iopoint.inserters = nil
-        end
-        local positions = locallib.output_positions2
-        inserters = create_inserters(device, device.direction, positions[1], inserter_count, inserter_name)
-    end
-
-    iopoint.inserters = inserters
+    local container = find_container(device)
     return container
 end
 nodelib.create_output_objects = create_output_objects
@@ -512,34 +492,14 @@ nodelib.create_output_objects = create_output_objects
 ---Move from belt to container
 ---@param iopoint IOPoint
 ---@param loader LuaEntity
----@param inserter_count integer
 ---@return LuaEntity?
-local function create_input_object(iopoint, loader, inserter_count)
+local function create_input_object(iopoint, loader)
     local device = iopoint.device
-    local surface = device.surface
-    local need_change = iopoint.is_output and iopoint.is_output ~= false
 
     iopoint.is_output = nil
     loader.loader_type = "input"
 
-    local container_position = get_front(device.direction, device.position)
-    local container = find_container(surface, container_position)
-    if not container then
-        return nil
-    end
-    local inserters = surface.find_entities_filtered { position = device.position, name = inserter_name }
-    if need_change or #inserters ~= 2 * inserter_count then
-        if #inserters > 0 then
-            for _, inserter in pairs(inserters) do
-                inserter.destroy()
-            end
-            iopoint.inserters = nil
-        end
-        local positions = locallib.input_positions2[1]
-        inserters = create_inserters(device, device.direction, positions, inserter_count, inserter_name)
-    end
-
-    iopoint.inserters = inserters
+    local container = find_container(device)
     return container
 end
 nodelib.create_input_object = create_input_object
@@ -549,26 +509,27 @@ local function create_internal_container(iopoint)
     if not iopoint.container then
         local device = iopoint.device
         local surface = device.surface
-        local existings = surface.find_entities_filtered { position = device.position,
-            name = commons.chest_name, radius = 0.5 }
+        local position
+
+        position = device.position
+        local existings = surface.find_entities_filtered {
+            position = position,
+            name = commons.chest_name,
+            radius = 0.5
+        }
         if #existings >= 1 then
             iopoint.container = existings[1]
         else
             iopoint.container = surface.create_entity(
-                { position = device.position, name = commons.chest_name, force = device.force, create_build_effect_smoke = false }) --[[@as LuaEntity]]
+                {
+                    position = position,
+                    name = commons.chest_name,
+                    force = device.force,
+                    create_build_effect_smoke = false
+                })
         end
         iopoint.inventory = iopoint.container.get_inventory(defines.inventory.chest) --[[@as LuaInventory]]
         iopoint.inventory.set_bar(config.io_buffer_size)
-    end
-
-    if iopoint.is_output then
-        for _, inserter in pairs(iopoint.inserters) do
-            inserter.pickup_target = iopoint.container
-        end
-    else
-        for _, inserter in pairs(iopoint.inserters) do
-            inserter.drop_target = iopoint.container
-        end
     end
 end
 nodelib.create_internal_container = create_internal_container
@@ -605,21 +566,20 @@ function nodelib.build_network(devices)
             context.iopoints[iopoint_id] = iopoint
         end
 
-        local inserter_count = locallib.get_inserter_count(device_info.belt)
+        loader.active = true
 
         ---@type LuaEntity?
         local container
 
-        loader.active = false
         if device_info.output then -- move from belt to container
-            container = create_input_object(iopoint, loader, inserter_count)
+            container = create_input_object(iopoint, loader)
             if not container then
                 context.iopoints[iopoint_id] = nil
                 goto _next
             end
             connection.inputs[iopoint_id] = iopoint
         else --- Move from container to belt
-            container = create_output_objects(iopoint, loader, inserter_count)
+            container = create_output_objects(iopoint, loader)
             if not container then
                 context.iopoints[iopoint_id] = nil
                 goto _next

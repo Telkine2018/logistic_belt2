@@ -74,7 +74,7 @@ local function create_inserters()
       sheets = {
         -- Base
         {
-          filename = png("entity/hr-device"),
+          filename = png("entity/hr-device-rev"),
           height   = 192,
           priority = "extra-high",
           scale    = 0.5,
@@ -83,7 +83,7 @@ local function create_inserters()
         },
         -- Shadow
         {
-          filename       = png("entity/hr-device-shadow"),
+          filename       = png("entity/hr-device-shadow-rev"),
           height         = 192,
           priority       = "extra-high",
           scale          = 0.5,
@@ -149,7 +149,7 @@ local function create_inserters()
 end
 
 local function create_loaders()
-  local device_loader_name = prefix .. "-loader"
+  local device_loader_name = commons.device_loader_name
 
   local device_loader = table.deepcopy(data.raw["underground-belt"]["express-underground-belt"])
   device_loader.type = "loader-1x1"
@@ -224,9 +224,11 @@ local function create_loaders()
   }
 
   device_loader.speed = inserter_speed
-  device_loader.container_distance = 0
-  device_loader.belt_length = 0.6
   device_loader.next_upgrade = nil
+  device_loader.container_distance  = 0.4
+  if mods["space-age"] then
+    device_loader.max_belt_stack_size = 4
+  end
 
   local sushi_loader_name = prefix .. "-loader-sushi"
   local sushi_loader = table.deepcopy(device_loader)

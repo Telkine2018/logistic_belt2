@@ -91,13 +91,6 @@ function locallib.create_loader(master, loader_name)
 	return loader --[[@as LuaEntity]]
 end
 
----@param master LuaEntity
----@return LuaEntity?
-function locallib.find_loader(master)
-	local entities = master.surface.find_entities_filtered { name = commons.device_loader_name, position = master.position }
-	if #entities == 1 then return entities[1] end
-	return nil
-end
 
 ---@param device LuaEntity
 ---@param entity_names string[]?
@@ -303,10 +296,10 @@ function locallib.add_monitored_device(device, add_neighbors)
 		local iopoint = context.iopoints[device.unit_number]
 		if iopoint then
 			for _, other in pairs(iopoint.connection.inputs) do
-				storage.monitored_devices[other.id] =  other.device
+				storage.monitored_devices[other.id] = other.device
 			end
 			for _, other in pairs(iopoint.connection.outputs) do
-				storage.monitored_devices[other.id] =  other.device
+				storage.monitored_devices[other.id] = other.device
 			end
 		end
 	end
@@ -366,22 +359,22 @@ end
 ---@return boolean
 ---@return boolean?
 function locallib.adjust_direction(device)
-	local direction = device.direction
-	local position = device.position
-	local front_pos = get_front(direction, position)
+	local direction    = device.direction
+	local position     = device.position
+	local front_pos    = get_front(direction, position)
 
 	local opposite     = get_opposite_direction(direction) --[[@as defines.direction]]
 	local opposite_pos = get_front(opposite, position)
 
 	-- device.direction => belt
-	local entities = device.surface.find_entities_filtered { position = front_pos, type = locallib.belt_types }
+	local entities     = device.surface.find_entities_filtered { position = front_pos, type = locallib.belt_types }
 	if (#entities > 0) then
 		device.direction = opposite
 		debug("invert direction:" .. opposite)
 		return true, true
 	end
 
-	entities           = device.surface.find_entities_filtered { position = opposite_pos, type = locallib.belt_types }
+	entities = device.surface.find_entities_filtered { position = opposite_pos, type = locallib.belt_types }
 	if (#entities > 0) then
 		debug("no change direction")
 		return true, false
@@ -432,22 +425,21 @@ end
 
 ---@param node Node
 function locallib.update_buffer_size(node)
-    local buffer_size = node.buffer_size
-    if node.outputs then
-        for _, output in pairs(node.outputs) do
-            if output.inventory and output.inventory.valid then
-                output.inventory.set_bar(buffer_size)
-            end
-        end
-    end
-    if node.inputs then
-        for _, input in pairs(node.inputs) do
-            if input.inventory and input.inventory.valid then
-                input.inventory.set_bar(buffer_size)
-            end
-        end
-    end
+	local buffer_size = node.buffer_size
+	if node.outputs then
+		for _, output in pairs(node.outputs) do
+			if output.inventory and output.inventory.valid then
+				output.inventory.set_bar(buffer_size)
+			end
+		end
+	end
+	if node.inputs then
+		for _, input in pairs(node.inputs) do
+			if input.inventory and input.inventory.valid then
+				input.inventory.set_bar(buffer_size)
+			end
+		end
+	end
 end
-
 
 return locallib

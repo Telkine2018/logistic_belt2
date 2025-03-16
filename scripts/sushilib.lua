@@ -23,11 +23,7 @@ local item_count_name = prefix .. "_sushi_item_count"
 
 -----------------------------------------------------
 
-local device_name = commons.device_name
-local inserter_name = commons.inserter_name
 local filter_name = commons.filter_name
-local device_loader_name = commons.device_loader_name
-local slow_filter_name = commons.slow_filter_name
 
 local sushi_name = commons.sushi_name
 local sushi_loader_name = commons.sushi_loader_name

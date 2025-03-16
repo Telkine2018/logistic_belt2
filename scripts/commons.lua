@@ -1,4 +1,3 @@
-
 local commons = {}
 
 commons.prefix = "logistic_belt2"
@@ -62,4 +61,3 @@ commons.connector_chest_size = 40
 commons.shift_button1_event = prefix .. "-shift-button1"
 
 return commons
-

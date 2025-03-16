@@ -12,17 +12,9 @@ local debug = tools.debug
 local get_vars = tools.get_vars
 local strip = tools.strip
 
-local device_name = commons.device_name
-local device_loader_name = commons.device_loader_name
-local sushi_name = commons.sushi_name
-local sushi_loader_name = commons.sushi_loader_name
-
 
 local old_prefix = ""
 
-local old_device_name = old_prefix .. "-device"
-local old_sushi_name = old_prefix .. "-sushi"
-local old_router_name = prefix .. "-router"
 
 ---@class UpdateDeviceRequest
 ---@field item string

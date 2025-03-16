@@ -24,7 +24,7 @@ data:extend {
 		subgroup = 'belt',
 		order = '[logistic]-a',
 		place_result = commons.device_name,
-		stack_size = 50
+		stack_size = 20
 	},
 	{
 		type = 'item',
@@ -34,7 +34,7 @@ data:extend {
 		subgroup = 'belt',
 		order = '[logistic]-b',
 		place_result = commons.sushi_name,
-		stack_size = 50
+		stack_size = 20
 	},
 	{
 		type = 'item',
@@ -44,7 +44,7 @@ data:extend {
 		subgroup = 'belt',
 		order = '[logistic]-c',
 		place_result = commons.overflow_name,
-		stack_size = 50
+		stack_size = 20
 	},
 	{
 		type = 'item',
@@ -54,7 +54,7 @@ data:extend {
 		subgroup = 'belt',
 		order = '[logistic]-a',
 		place_result = commons.uploader_name,
-		stack_size = 50
+		stack_size = 20
 	},
 
 	-- Recipe

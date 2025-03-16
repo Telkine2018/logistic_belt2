@@ -47,6 +47,31 @@ end
 
 -----------------------------------------------
 
+local chest_attr = {
+
+	flags = {
+		"placeable-neutral",
+		"player-creation",
+		"not-on-map",
+		"not-blueprintable",
+		"not-deconstructable",
+		"not-upgradable",
+	},
+	collision_box = { { -0.4, -0.4 }, { 0.4, 0.4 } },
+	selection_box = { { 0, 0 }, { 0, 0 } },
+	collision_mask = { layers = {} },
+	selectable_in_game = commons.debug_mode
+}
+
+local chest = table.deepcopy(data.raw["container"]["steel-chest"])
+chest.name = commons.chest_name
+chest.picture = empty_sprite
+chest.inventory_size = 40
+chest = tools.table_merge({ chest, chest_attr })
+data:extend { chest }
+
+-----------------------------------------------
+
 local commons_attr = {
 
 	flags = { "hide-alt-info", "not-on-map", "not-blueprintable", "not-deconstructable", "not-upgradable",
@@ -57,14 +82,6 @@ local commons_attr = {
 	selectable_in_game = commons.debug_mode
 }
 
-local chest = table.deepcopy(data.raw["container"]["steel-chest"])
-chest.name = commons.chest_name
-chest.picture = empty_sprite
-chest.inventory_size = 40
-chest = tools.table_merge({ chest, commons_attr })
-data:extend { chest }
-
------------------------------------------------
 
 local router = table.deepcopy(data.raw["linked-container"]["linked-chest"])
 

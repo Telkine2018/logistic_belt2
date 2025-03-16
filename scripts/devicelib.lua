@@ -22,12 +22,8 @@ local strip = tools.strip
 local devicelib = {}
 
 local device_name = commons.device_name
-local inserter_name = commons.inserter_name
-local filter_name = commons.filter_name
 local device_loader_name = commons.device_loader_name
-local slow_filter_name = commons.slow_filter_name
 local sushi_name = commons.sushi_name
-local sushi_loader_name = commons.sushi_loader_name
 local overflow_name = commons.overflow_name
 
 local device_panel_name = commons.device_panel_name
@@ -41,11 +37,6 @@ local container_types_map = tools.table_map(locallib.container_types, function(k
 
 local entities_to_clear = commons.entities_to_clear
 local entities_to_destroy = locallib.entities_to_destroy
-
-local get_front = tools.get_front
-local get_back = tools.get_back
-local get_opposite_direction = tools.get_opposite_direction
-
 
 local create_loader = locallib.create_loader
 local clear_entities = locallib.clear_entities
@@ -93,7 +84,7 @@ local function process_monitored_object()
 	---@type table<integer, Node>
 	local nodes = storage.monitored_nodes
 	if not nodes then
-		nodes                  = {}
+		nodes                   = {}
 		storage.monitored_nodes = nodes
 	end
 
@@ -105,7 +96,7 @@ local function process_monitored_object()
 
 	local monitored_devices = storage.monitored_devices
 
-	local monitored_err_ids = storage.monitored_err_ids 
+	local monitored_err_ids = storage.monitored_err_ids
 	if not monitored_err_ids then
 		monitored_err_ids = {}
 		storage.monitored_err_ids = monitored_err_ids
@@ -147,7 +138,7 @@ local function process_monitored_object()
 							end
 							for _, id in pairs(ids) do
 								done_map[id] = true
-								if monitored_err_ids[id]  then
+								if monitored_err_ids[id] then
 									monitored_err_ids[id].destroy()
 									monitored_err_ids[id] = nil
 								end

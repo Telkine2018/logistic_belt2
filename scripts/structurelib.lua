@@ -7,12 +7,6 @@ local config = require "scripts.config"
 
 local prefix = commons.prefix
 
-local device_name = commons.device_name
-local inserter_name = commons.inserter_name
-local filter_name = commons.filter_name
-local device_loader_name = commons.device_loader_name
-local overflow_name = commons.overflow_name
-
 local tracing = tools.tracing
 local debug = tools.debug
 local cdebug = tools.cdebug
@@ -238,8 +232,8 @@ function structurelib.is_orphan(node)
 end
 
 ---@param node Node
----@param clean boolean?
-function structurelib.reset_node(node, clean)
+---@param empty_container boolean?
+function structurelib.reset_node(node, empty_container)
     -- remove node
     if structurelib.is_orphan(node) then
         structurelib.delete_node(node, node.id)
@@ -256,7 +250,7 @@ function structurelib.reset_node(node, clean)
             provided.provided = 0
         end
     end
-    if node.inputs and clean then
+    if node.inputs and empty_container then
         for _, input in pairs(node.inputs) do
             input.inventory.clear()
         end
@@ -327,6 +321,11 @@ function structurelib.on_mined_iopoint(entity, id)
     local iopoint = context.iopoints[id]
     if not iopoint then return end
 
+    if iopoint.container and iopoint.container.valid then
+        iopoint.container.destroy()
+        iopoint.container = nil
+    end
+    
     disconnect_iopoint(iopoint)
     ---@cast id -nil
     context.iopoints[id] = nil
@@ -1235,12 +1234,43 @@ local function migration_2_0_0()
             n.full_id = rendering.get_object_by_id(n.full_id --[[@as integer]])
         end
     end
-
 end
+
+local function migration_2_0_1()
+
+    local context = storage.context ---@as Context
+    if not context then return end
+
+    for _, iopoint in pairs(context.iopoints) do
+        if iopoint.device.valid then
+            if iopoint.inserters then
+                for _, inserter in pairs(iopoint.inserters) do
+                    inserter.destroy()
+                end
+                iopoint.inserters = nil
+            end
+            local position = iopoint.device.position
+            local loaders = iopoint.device.surface.find_entities_filtered{
+                name=commons.device_loader_name,
+                position = position,
+                radius = 0.5
+            }
+            if #loaders == 1 then
+                local loader_type = loaders[1].loader_type
+                loaders[1] .destroy()
+                local loader = locallib.create_loader(iopoint.device, commons.device_loader_name)
+                loader.loader_type = loader_type
+                loader.active = true
+            end
+        end
+    end
+end
+
 
 local migrations_table = {
 
-    ["2.0.0"] = migration_2_0_0
+    ["2.0.0"] = migration_2_0_0,
+    ["2.0.1"] = migration_2_0_1,
 }
 
 local function general_migrations()

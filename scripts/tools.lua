@@ -805,6 +805,17 @@ function tools.get_local_disp(direction, pos)
     end
 end
 
+tools.directions = {
+    [define_directions.north] = { x = 0, y = -1 },
+    [define_directions.northeast] = { x = 1, y = -1 },
+    [define_directions.northwest] = { x = -1, y = -1 },
+    [define_directions.south] = { x = 0, y = -1 },
+    [define_directions.southwest] = { x = -1, y = -1 },
+    [define_directions.southeast] = { x = 1, y = -1 },
+    [define_directions.west] = { x = -1, y = 0 },
+    [define_directions.east] = { x = 1, y = 0 }
+}
+
 ---@param direction integer | defines.direction
 ---@param pos MapPosition
 ---@return MapPosition
