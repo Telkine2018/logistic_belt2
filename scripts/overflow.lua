@@ -43,7 +43,7 @@ local function try_connect(iopoint, loader)
         loader = loaders[1]
     end
 
-    local container = nodelib.create_output_objects(iopoint, loader, inserter_count)
+    local container = nodelib.create_output_objects(iopoint, loader)
     if not container then
         return false
     end
@@ -73,7 +73,7 @@ function overflowlib.on_built_entity(entity, tags)
         entity.rotatable = false
     end
     local loader = locallib.create_loader(entity, commons.overflow_loader_name)
-    loader.active = false
+    loader.active = true
 
     --- Register
     local iopoint_id = entity.unit_number

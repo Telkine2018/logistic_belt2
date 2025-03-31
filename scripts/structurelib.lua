@@ -170,7 +170,8 @@ end
 ---@return LuaInventory?
 function structurelib.get_inventory(container)
     local inventory
-    if container.type == "assembling-machine" then
+    local type = container.type
+    if type == "assembling-machine" then
         if container.name ~= "supply-depot" then
             inventory = container.get_inventory(defines.inventory.assembling_machine_output) --[[@as LuaInventory]]
         else
@@ -179,6 +180,10 @@ function structurelib.get_inventory(container)
                 inventory = chest.get_inventory(defines.inventory.chest) --[[@as LuaInventory]]
             end
         end
+    elseif type == "space-platform-hub" then
+        inventory = container.get_inventory(defines.inventory.hub_main) --[[@as LuaInventory]]
+    elseif type == "cargo-landing-pad" then
+        inventory = container.get_inventory(defines.inventory.cargo_landing_pad_main) --[[@as LuaInventory]]
     else
         inventory = container.get_inventory(defines.inventory.chest) --[[@as LuaInventory]]
     end
@@ -261,6 +266,7 @@ function structurelib.reset_node(node, empty_container)
     node.saturated = false
     node.remaining = nil
     node.dist_cache = nil
+    node.spoil_values = {}
 end
 
 local reset_node = structurelib.reset_node
@@ -313,7 +319,7 @@ end
 ---@param id integer?
 function structurelib.on_mined_iopoint(entity, id)
     local context = get_context()
-    
+
     if not id then
         id = entity.unit_number
     end
@@ -325,7 +331,7 @@ function structurelib.on_mined_iopoint(entity, id)
         iopoint.container.destroy()
         iopoint.container = nil
     end
-    
+
     disconnect_iopoint(iopoint)
     ---@cast id -nil
     context.iopoints[id] = nil
@@ -653,6 +659,33 @@ end
 
 local item_to_string = tools.item_to_string
 
+local spoil_map = {}
+local spoil_qmap = {}
+
+---@param inv LuaInventory
+---@param size integer
+---@param spoil_counts {[string]:number}
+---@param spoil_values {[string]:number}
+local function load_spoil(inv, size, spoil_counts, spoil_values)
+    for i = 1, size do
+        local stack = inv[i]
+        if stack.valid_for_read then
+            local name = stack.name
+            local quality = stack.quality
+            local count = stack.count
+            local spoil_percent = stack.spoil_percent
+            local qname = item_to_string { name = name, quality = quality.name }
+            ---@cast qname -nil
+            if spoil_map[name] then
+                local pcount = spoil_counts[qname] or 0
+                local pvalue = spoil_values[qname] or 0
+                spoil_counts[qname] = pcount + count
+                spoil_values[qname] = (pcount * pvalue + count * spoil_percent) / (pcount + count)
+            end
+        end
+    end
+end
+
 ---@param node Node
 local function process_node(node)
     local inventory = node.inventory
@@ -670,27 +703,56 @@ local function process_node(node)
     --- Compute input to node
     local remaining = node.remaining
     local requested = node.requested
+    local spoil_values = node.spoil_values
+    local spoil_counts
+    if not spoil_values then
+        spoil_values = {}
+    end
 
     if not remaining or node.disabled then
         if remaining then
             input_items = remaining
             changed = true
             node.remaining = nil
+            if table_size(spoil_values) > 0 then
+                spoil_counts = {}
+                for qname, count in pairs(spoil_values) do
+                    spoil_counts[qname] = count
+                end
+            end
         else
             input_items = {}
+            spoil_values = {}
         end
+
         for _, input in pairs(node.inputs) do
-            if not input.inventory.is_empty() then
-                local input_contents = input.inventory.get_contents()
+            local inv = input.inventory
+            local has_spoil
+            if not inv.is_empty() then
+                local input_contents = inv.get_contents()
                 for _, item in pairs(input_contents) do
+                    local name = item.name
                     local qname = item_to_string(item)
                     ---@cast qname -nil
                     input_items[qname] = (input_items[qname] or 0) + item.count
+                    if not has_spoil and spoil_map[name] ~= false then
+                        has_spoil = spoil_map[name]
+                        if has_spoil == nil then
+                            has_spoil = prototypes.item[item.name].get_spoil_ticks() > 0
+                            spoil_map[name] = has_spoil
+                        end
+                        spoil_qmap[qname] = has_spoil
+                    end
                 end
-                input.inventory.clear()
+                if has_spoil then
+                    if not spoil_counts then spoil_counts = {} end
+                    load_spoil(inv, inv.get_bar() - 1, spoil_counts, spoil_values)
+                end
+                inv.clear()
                 changed = true
             end
         end
+
         --[[         if debug_nodeids[node.id] then
             debug("(" .. node.id .. ") input_items=" .. tools.strip(input_items))
         end
@@ -701,14 +763,32 @@ local function process_node(node)
         node.remaining = nil
     end
 
+    local has_spoil
     local content_list = inventory.get_contents()
     contents = {}
     for _, item in pairs(content_list) do
         local qname = item_to_string(item)
         ---@cast qname -nil
         contents[qname] = item.count
+        if not has_spoil then
+            has_spoil = spoil_qmap[qname]
+            if has_spoil == nil then
+                has_spoil = prototypes.item[item.name].get_spoil_ticks() > 0
+                spoil_map[item.name] = has_spoil
+                spoil_qmap[qname] = has_spoil
+            end
+        end
     end
-
+    if has_spoil then
+        local size
+        if inventory.supports_bar() then
+            size = inventory.get_bar() - 1
+        else
+            size = #inventory
+        end
+        if not spoil_counts then spoil_counts = {} end
+        load_spoil(inventory, size, spoil_counts, spoil_values)
+    end
 
     -- do routing
     node.saturated = false
@@ -759,7 +839,12 @@ local function process_node(node)
                     end
 
                     local real_inserted = routing.output.inventory.insert {
-                        name = item.name, count = inserted_amount, quality = item.quality }
+                        name = item.name,
+                        count = inserted_amount,
+                        quality = item.quality,
+                        spoil_percent = spoil_values[qname]
+                    }
+
                     if real_inserted ~= inserted_amount then
                         node.saturated = true
                     end
@@ -943,7 +1028,12 @@ local function process_node(node)
                         item = string_to_item(qname)
                     end
                     ---@cast item -nil
-                    local real = output.inventory.insert { name = item.name, count = count, quality = item.quality }
+                    local real = output.inventory.insert {
+                        name = item.name,
+                        count = count,
+                        quality = item.quality,
+                        spoil_percent = spoil_values[qname]
+                    }
                     if real > 0 then
                         contents[qname] = contents[qname] - real
                         input_items[qname] = -real
@@ -971,7 +1061,12 @@ local function process_node(node)
             end
             ---@cast item -nil
             if count > 0 then
-                local inserted = inventory.insert { name = item.name, count = count, quality = item.quality }
+                local inserted = inventory.insert {
+                    name = item.name,
+                    count = count,
+                    quality = item.quality,
+                    spoil_percent = spoil_values[qname]
+                }
                 contents[qname] = (contents[qname] or 0) + inserted
                 if inserted ~= count then
                     if not remaining then
@@ -1001,13 +1096,22 @@ local function process_node(node)
                     ---@cast item -nil
                     if count < 0 then
                         count = -count
-                        local real = inventory.remove { name = item.name, count = count, quality = item.quality }
+                        local real = inventory.remove {
+                            name = item.name,
+                            count = count,
+                            quality = item.quality
+                        }
                         if real ~= count then
                             log("---> invalid remove: nodeid=" .. node.id .. ",item=" .. qname .. "," .. count .. " => " .. real)
                         end
                     elseif count > 0 then
                         log("---> input remains: nodeid=" .. node.id .. ",item=" .. qname .. "," .. count)
-                        local inserted = inventory.insert { name = item.name, count = count, quality = item.quality }
+                        local inserted = inventory.insert {
+                            name = item.name,
+                            count = count,
+                            quality = item.quality,
+                            spoil_percent = spoil_values[qname]
+                        }
                         if inserted ~= count then
                             if not remaining then
                                 remaining = {}
@@ -1042,12 +1146,21 @@ local function process_node(node)
                         item = string_to_item(qname)
                     end
                     ---@cast item -nil
-                    local inserted = inventory.insert { name = item.name, count = count, quality = item.quality }
+                    local inserted = inventory.insert {
+                        name = item.name,
+                        count = count,
+                        quality = item.quality,
+                        spoil_percent = spoil_values[qname]
+                    }
                     if inserted < count then
-                        node.container.surface.spill_item_stack 
-                        {   position = node.container.position,
-                            stack = { name = item.name, count = count, quality = item.quality },
-                            enable_looted = true, 
+                        node.container.surface.spill_item_stack
+                        { position = node.container.position,
+                            stack = {
+                                name = item.name,
+                                count = count - inserted,
+                                quality = item.quality,
+                                spoil_percent = spoil_values[qname] },
+                            enable_looted = true,
                             force = node.container.force }
                     end
                 end
@@ -1215,7 +1328,6 @@ function structurelib.repair(context)
 end
 
 local function migration_2_0_0()
-
     local context = storage.context ---@as Context
     if not context then return end
 
@@ -1237,7 +1349,6 @@ local function migration_2_0_0()
 end
 
 local function migration_2_0_1()
-
     local context = storage.context ---@as Context
     if not context then return end
 
@@ -1250,14 +1361,14 @@ local function migration_2_0_1()
                 iopoint.inserters = nil
             end
             local position = iopoint.device.position
-            local loaders = iopoint.device.surface.find_entities_filtered{
-                name=commons.device_loader_name,
+            local loaders = iopoint.device.surface.find_entities_filtered {
+                name = commons.device_loader_name,
                 position = position,
                 radius = 0.5
             }
             if #loaders == 1 then
                 local loader_type = loaders[1].loader_type
-                loaders[1] .destroy()
+                loaders[1].destroy()
                 local loader = locallib.create_loader(iopoint.device, commons.device_loader_name)
                 loader.loader_type = loader_type
                 loader.active = true
@@ -1319,8 +1430,7 @@ local function general_migrations()
 end
 
 local function on_configuration_changed(data)
-
-    get_context()    
+    get_context()
     migration.on_config_changed(data, migrations_table)
     general_migrations()
 end

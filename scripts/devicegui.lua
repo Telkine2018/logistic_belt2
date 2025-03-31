@@ -140,6 +140,10 @@ function devicegui.open(player, entity)
 			gui_type = defines.relative_gui_type.linked_container_gui
 		elseif entity.type == "assembling-machine" then
 			gui_type = defines.relative_gui_type.assembling_machine_gui
+		elseif entity.type == "cargo-landing-pad" then
+			gui_type = defines.relative_gui_type.cargo_landing_pad_gui
+		elseif entity.type == "space-platform-hub" then
+			gui_type = defines.relative_gui_type.space_platform_hub_gui
 		else
 			gui_type = defines.relative_gui_type.container_gui
 		end

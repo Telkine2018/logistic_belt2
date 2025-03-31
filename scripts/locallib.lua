@@ -40,7 +40,10 @@ locallib.container_types = {
 	"infinity-container",
 	"linked-container",
 	"logistic-container",
-	"assembling-machine"
+	"assembling-machine",
+	"space-platform-hub",
+	"cargo-landing-pad"
+
 }
 
 locallib.container_type_map = {

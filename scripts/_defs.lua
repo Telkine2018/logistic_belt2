@@ -70,6 +70,7 @@
 ---@field last_reset_tick integer
 ---@field saturated boolean?
 ---@field remaining table<string, integer>?
+---@field spoil_values {[string]:number}
 ---@field priority integer
 ---@field buffer_size integer
 ---@field overflows table<integer, IOPoint>

@@ -310,6 +310,13 @@ local function on_player_built(ev)
 	on_build(entity, ev.tags, ev.player_index)
 end
 
+---@param ev EventData.on_space_platform_built_entity
+local function on_space_platform_built_entity(ev)
+	local entity = ev.entity
+
+	on_build(entity, ev.tags)
+end
+
 local build_filter = tools.table_concat {
 	{
 		{ filter = 'name', name = device_name },
@@ -326,6 +333,7 @@ tools.on_event(defines.events.on_built_entity, on_player_built, build_filter)
 tools.on_event(defines.events.on_robot_built_entity, on_robot_built, build_filter)
 tools.on_event(defines.events.script_raised_built, on_script_built, build_filter)
 tools.on_event(defines.events.script_raised_revive, on_script_revive)
+tools.on_event(defines.events.on_space_platform_built_entity, on_space_platform_built_entity, build_filter)
 
 
 
@@ -371,6 +379,7 @@ script.on_event(defines.events.on_player_mined_entity, on_player_mined_entity, m
 script.on_event(defines.events.on_robot_mined_entity, on_mined, mine_filter)
 script.on_event(defines.events.on_entity_died, on_mined, mine_filter)
 script.on_event(defines.events.script_raised_destroy, on_mined, mine_filter)
+tools.on_event(defines.events.on_space_platform_mined_entity, on_mined, mine_filter)
 
 ---@param surface_index integer
 local function delete_all_from_surface(surface_index)
