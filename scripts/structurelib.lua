@@ -184,6 +184,8 @@ function structurelib.get_inventory(container)
         inventory = container.get_inventory(defines.inventory.hub_main) --[[@as LuaInventory]]
     elseif type == "cargo-landing-pad" then
         inventory = container.get_inventory(defines.inventory.cargo_landing_pad_main) --[[@as LuaInventory]]
+    elseif type == "agricultural-tower" then
+        inventory = container.get_inventory(3) --[[@as LuaInventory]]
     else
         inventory = container.get_inventory(defines.inventory.chest) --[[@as LuaInventory]]
     end
@@ -222,7 +224,7 @@ function structurelib.create_node(container)
             end
         end
     else
-        node.inventory = container.get_inventory(defines.inventory.chest) --[[@as LuaInventory]]
+        node.inventory = structurelib.get_inventory(container) --[[@as LuaInventory]]
     end
     ---@cast id -nil
     context.nodes[id] = node
@@ -558,6 +560,9 @@ local function insert_routing(producer, node, item, amount)
 
     while rnode ~= node do
         local previous = rnode.previous
+        if not previous then
+            return nil
+        end
         local outputs = rnode.output_map[previous.id]
         if not outputs then
             return nil
@@ -695,7 +700,7 @@ local function process_node(node)
     ---@type table<string, integer>
     local input_items
 
-    if not inventory.valid then
+    if not inventory or not inventory.valid then
         structurelib.delete_node(node, node.id)
         return
     end

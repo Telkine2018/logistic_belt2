@@ -42,8 +42,8 @@ locallib.container_types = {
 	"logistic-container",
 	"assembling-machine",
 	"space-platform-hub",
-	"cargo-landing-pad"
-
+	"cargo-landing-pad",
+	"agricultural-tower"
 }
 
 locallib.container_type_map = {
