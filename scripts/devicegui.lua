@@ -722,7 +722,7 @@ local function register_mapping(bp, mapping, surface)
 								restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
 							})
 						end
-					elseif locallib.container_type_map[helpers.entity_prototypes[bp_entity.name].type] then
+					elseif locallib.container_type_map[prototypes.entity[bp_entity.name].type] then
 						local container = (surface.find_entities_filtered { name = bp_entity.name, position = bp_entity.position, radius = 0.1 })[1]
 						if container then
 							local node = structurelib.get_node(container)
