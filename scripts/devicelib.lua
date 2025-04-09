@@ -265,8 +265,7 @@ local function on_build(entity, tags, player_index)
 	elseif name == commons.router_name then
 		routerlib.on_build(entity, tags)
 	elseif name == commons.uploader_name then
-		local loader = entity
-		loader.loader_type = "input"
+		entity.loader_type = "input"
 	elseif locallib.container_type_map[entity.type] then
 		if tags and tags.logistic_belt2_node then
 			local node = structurelib.create_node(entity)

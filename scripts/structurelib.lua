@@ -1110,7 +1110,7 @@ local function process_node(node)
                             log("---> invalid remove: nodeid=" .. node.id .. ",item=" .. qname .. "," .. count .. " => " .. real)
                         end
                     elseif count > 0 then
-                        log("---> input remains: nodeid=" .. node.id .. ",item=" .. qname .. "," .. count)
+                        -- log("---> input remains: nodeid=" .. node.id .. ",item=" .. qname .. "," .. count)
                         local inserted = inventory.insert {
                             name = item.name,
                             count = count,

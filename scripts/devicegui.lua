@@ -1131,11 +1131,6 @@ local function factory_organizer_install()
 		remote.call("factory_organizer", "add_teleport_method", commons.device_name, "logistic_belt2_move", "teleport")
 		remote.call("factory_organizer", "add_teleport_method", commons.sushi_name, "logistic_belt2_move", "teleport")
 		remote.call("factory_organizer", "add_teleport_method", commons.overflow_name, "logistic_belt2_move", "teleport")
-		local names = tools.table_copy(commons.entities_to_clear)
-		table.insert(names, commons.device_loader_name)
-		table.insert(names, commons.sushi_loader_name)
-		table.insert(names, commons.overflow_loader_name)
-		remote.call("factory_organizer", "add_not_moveable", names)
 	end
 end
 
