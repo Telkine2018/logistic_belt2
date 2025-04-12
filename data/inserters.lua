@@ -125,6 +125,7 @@ local function create_inserters()
   copy_inserter.draw_circuit_wires = debug_mode
   copy_inserter.name = prefix .. "-inserter"
   copy_inserter.minable = { mining_time = 0.1 }
+  copy_inserter.hidden = true
   --copy_inserter.collision_box = nil
   table.insert(copy_inserter.flags, "not-rotatable")
   if not debug_mode then
@@ -164,6 +165,7 @@ local function create_loaders()
   device_loader.filter_count = 0
   device_loader.fast_replaceable_group = nil
   device_loader.selectable_in_game = false
+  device_loader.hidden = true
   --entity.belt_animation_set = nil
   device_loader.structure = {
     direction_in = {
