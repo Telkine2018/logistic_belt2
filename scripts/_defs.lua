@@ -67,6 +67,7 @@
 ---@field provided table<string, ProvidedItem>                      @ item => threshold
 ---@field requested table<string, RequestedItem>                    @ item => requested items
 ---@field disabled boolean?
+---@field no_propagation boolean?
 ---@field last_reset_tick integer
 ---@field saturated boolean?
 ---@field remaining table<string, integer>?

@@ -43,16 +43,18 @@ function nodelib.get_stock(node)
         if current.inputs then
             for _, input in pairs(current.inputs) do
                 local connection = input.connection
-                for _, output in pairs(connection.outputs) do
-                    local test_node = output.node
-                    local id = test_node.id
-                    if not parsed_nodes[id] then
-                        parsed_nodes[test_node.id] = true
-                        table.insert(nodes_to_parse, test_node)
-                        if test_node.provided and test_node.contents then
-                            for name, count in pairs(test_node.contents) do
-                                if test_node.provided[name] then
-                                    contents[name] = (contents[name] or 0) + count
+                if not current.no_propagation then
+                    for _, output in pairs(connection.outputs) do
+                        local test_node = output.node
+                        local id = test_node.id
+                        if not parsed_nodes[id] then
+                            parsed_nodes[test_node.id] = true
+                            table.insert(nodes_to_parse, test_node)
+                            if test_node.provided and test_node.contents then
+                                for name, count in pairs(test_node.contents) do
+                                    if test_node.provided[name] then
+                                        contents[name] = (contents[name] or 0) + count
+                                    end
                                 end
                             end
                         end

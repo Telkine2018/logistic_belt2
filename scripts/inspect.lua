@@ -192,6 +192,8 @@ function inspectlib.show(player, entity)
 
 
     if locallib.container_type_map[entity.type] and not locallib.excluded_containers[entity.name] then
+        
+        ---@type Node
         local node = structurelib.get_node(entity)
         if not node then
             inspectlib.close(player)

@@ -304,6 +304,17 @@ function devicegui.open(player, entity)
 	line.style.top_margin = 10
 
 	local flow = inner_frame.add { type = "flow" }
+	flow.add { type = "label", caption = { np("no_propagation-label") } }
+	local field = flow.add {
+		type = "checkbox",
+		name = np("no_propagation"),
+		tooltip = { np("no_propagation-tooltip") },
+		state = not not node.no_propagation }
+	field.style.left_margin = 10
+	field.style.top_margin = 4
+	flow.style.top_margin = 5
+
+	flow = inner_frame.add { type = "flow" }
 	flow.add { type = "label", caption = { np("cleaner-label") } }
 	local field = flow.add {
 		type = "checkbox",
@@ -311,6 +322,7 @@ function devicegui.open(player, entity)
 		tooltip = { np("cleaner-tooltip") },
 		state = not not node.cleaner }
 	field.style.left_margin = 10
+	field.style.top_margin = 4
 	flow.style.top_margin = 5
 end
 
@@ -454,6 +466,10 @@ local function save_node_parameters(player)
 	local cleaner = tools.get_child(frame, np("cleaner"))
 	---@cast cleaner -nil
 	selected_node.cleaner = cleaner.state and true or nil
+
+	local no_propagation = tools.get_child(frame, np("no_propagation"))
+	---@cast no_propagation -nil
+	selected_node.no_propagation = no_propagation.state and true or nil
 
 	local priority = tools.get_child(frame, np("priority"))
 	---@cast priority -nil
@@ -658,6 +674,7 @@ local function register_mapping(bp, mapping, surface)
 				local name = entity.name
 				if name == commons.router_name then
 					if not is_processed[entity.link_id] then
+						---@type Node
 						local node = structurelib.get_node(entity)
 						is_processed[entity.link_id] = true
 						local filters = routerlib.get_filters(entity.get_inventory(defines.inventory.chest) --[[@as LuaInventory]])
@@ -667,7 +684,8 @@ local function register_mapping(bp, mapping, surface)
 							provided = node and dup_request(node.provided) --[[@as table]],
 							requested = node and dup_request(node.requested) --[[@as table]],
 							restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
-							buffer_size = node and node.buffer_size
+							buffer_size = node and node.buffer_size,
+							no_propagation = node and node.no_propagation
 						})
 					end
 				elseif locallib.container_type_map[entity.type] then
@@ -881,7 +899,9 @@ local function on_entity_settings_pasted(e)
 
 	if not src.valid or not dst.valid then return end
 
+	---@type Node
 	local nsrc = structurelib.get_node(src)
+	---@type Node
 	local ndst = structurelib.get_node(dst)
 
 	if nsrc and ndst then
@@ -939,6 +959,7 @@ local function on_entity_settings_pasted(e)
 			ndst.provided = nil
 		end
 		ndst.restrictions = tools.table_dup(nsrc.restrictions)
+		ndst.no_propagation = nsrc.no_propagation
 	elseif src.name == sushi_name and dst.name == sushi_name then
 		sushilib.do_paste(src, dst, e)
 	elseif src.name == commons.overflow_name and dst.name == commons.overflow_name then
