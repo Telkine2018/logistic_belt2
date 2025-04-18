@@ -81,6 +81,10 @@
 ---@field auto_provide boolean?
 ---@field cleaner boolean?
 ---@field cleaner_count integer
+---@field stat1 integer
+---@field stat2 integer
+---@field stat3 integer
+---@field stat4 integer
 
 ---@class Connection
 ---@field id integer

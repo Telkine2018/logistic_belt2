@@ -186,7 +186,9 @@ function structurelib.get_inventory(container)
     elseif type == "cargo-landing-pad" then
         inventory = container.get_inventory(defines.inventory.cargo_landing_pad_main) --[[@as LuaInventory]]
     elseif type == "agricultural-tower" then
-        inventory = container.get_inventory(3) --[[@as LuaInventory]]
+        ---@type integer | defines.inventory
+        local index = 3
+        inventory = container.get_inventory(index) --[[@as LuaInventory]]
     else
         inventory = container.get_inventory(defines.inventory.chest) --[[@as LuaInventory]]
     end
@@ -273,6 +275,12 @@ function structurelib.reset_node(node, empty_container)
     node.remaining = nil
     node.dist_cache = nil
     node.spoil_values = {}
+    --DEBUG
+    node.stat1 = nil
+    node.stat2 = nil
+    node.stat3 = nil
+    node.stat4 = nil
+    --ENDDEBUG
 end
 
 local reset_node = structurelib.reset_node
@@ -367,7 +375,7 @@ local function find_producer(node, req, amount)
         local structure_tick = context.structure_tick or 0
         if req.last_provider_tick >= structure_tick and tick < req.last_provider_tick + 600 then
             local test_node = context.nodes[req.last_provider_node]
-            if test_node and test_node.provided then
+            if test_node and test_node.provided and not test_node.saturated then
                 local provided_item = test_node.provided[item]
                 local available = (test_node.contents[item] or 0) - provided_item.provided
                 if available >= amount then
@@ -700,7 +708,7 @@ local function process_node(node)
     local inventory = node.inventory
     ---@type table<string, integer>
     local contents
-    local changed
+
     ---@type table<string, integer>
     local input_items
 
@@ -709,10 +717,10 @@ local function process_node(node)
         return
     end
 
-    debug("(" .. node.id .. ") -------------> process_node")
+    debug("(" .. node.id .. ") Entering,stat1=" .. tostring(node.stat1) .. ",stat2=" .. tostring(node.stat2) .. ",stat3=" .. tostring(node.stat3) .. ",stat4=" .. tostring(node.stat4))
 
     --- Compute input to node
-    local remaining = node.remaining
+    local remai = node.remaining
     local requested = node.requested
     local spoil_values = node.spoil_values
     local spoil_counts
@@ -723,7 +731,6 @@ local function process_node(node)
     if not remaining or node.disabled then
         if remaining then
             input_items = remaining
-            changed = true
             node.remaining = nil
             if table_size(spoil_values) > 0 then
                 spoil_counts = {}
@@ -745,7 +752,8 @@ local function process_node(node)
                     local name = item.name
                     local qname = item_to_string(item)
                     ---@cast qname -nil
-                    input_items[qname] = (input_items[qname] or 0) + item.count
+                    local icount = input_items[qname] or 0
+                    input_items[qname] = icount + item.count
                     if not has_spoil and spoil_map[name] ~= false then
                         has_spoil = spoil_map[name]
                         if has_spoil == nil then
@@ -760,15 +768,14 @@ local function process_node(node)
                     load_spoil(inv, inv.get_bar() - 1, spoil_counts, spoil_values)
                 end
                 inv.clear()
-                changed = true
             end
         end
 
         debug("(" .. node.id .. ") process_node, input_items=" .. tools.strip(input_items))
     else
-        changed = true
         input_items = remaining
         node.remaining = nil
+        remaining = nil
     end
 
     local has_spoil
@@ -800,44 +807,56 @@ local function process_node(node)
 
     debug("(" .. node.id .. ") process_node, contents=" .. tools.strip(contents))
 
-    --- Update request
-    local to_inventory = {}
+    --- Update request (item to put in inventory)
+    local to_inventories = {}
     if requested then
-        for item, request in pairs(requested) do
-            local count = input_items[item]
+        for qname, request in pairs(requested) do
+            local count = input_items[qname]
             if count and count > 0 then
                 local remaining = request.remaining
                 if count <= remaining then
-                    to_inventory[item] = count
-                    request.remaining = remaining - count
-                    input_items[item] = nil
+                    to_inventories[qname] = count
+                    input_items[qname] = nil
                 else
-                    to_inventory[item] = remaining
-                    input_items[item] = count - remaining
-                    request.remaining = 0
+                    to_inventories[qname] = remaining
+                    input_items[qname] = count - remaining
                 end
             end
         end
-
-        debug("(" .. node.id .. ") to_inventory=" .. tools.strip(to_inventory))
+        debug("(" .. node.id .. ") to_inventory=" .. tools.strip(to_inventories))
     end
 
     -- do routing
     node.saturated = false
     if node.routings then
         local to_remove_items
-        changed = true
         for qname, routing_map in pairs(node.routings) do
-            local item_count = (contents[qname] or 0)
             local item = string_to_items[qname]
             if not item then
                 item = string_to_item(qname)
             end
 
+            -- Node is provide
+            local content_count, to_inventory = 0, 0
+            if node.auto_provide or (node.provided and node.provided[qname]) then
+                content_count = (contents[qname] or 0)
+                to_inventory = to_inventories[qname] or 0
+            end
+
             ---@cast item -nil
             local provided_req = node.provided and node.provided[qname]
             local input_count = input_items[qname] or 0
-            local available = item_count + input_count
+            local available = content_count + input_count + to_inventory
+
+            local request
+            local reserved = 0
+            if requested then
+                request = requested[qname]
+                if request then
+                    reserved = math.max(request.remaining, math.ceil(request.count / 2))
+                end
+            end
+            available = available - reserved
 
             if available > 0 then
                 local remaining_available = available
@@ -889,9 +908,16 @@ local function process_node(node)
                     end
                 end
 
+                --DEBUG
+                node.stat1 = (node.stat1 or 0) + total_inserted
+                --ENDDEBUG
                 debug("(" .. node.id .. ") process_node, routing after: total_inserted[" .. qname .. "]=" .. total_inserted)
-
-                input_items[qname] = input_count - total_inserted
+                local route_remains = input_count - total_inserted
+                if route_remains == 0 then
+                    input_items[qname] = nil
+                else
+                    input_items[qname] = route_remains
+                end
 
                 -- Remove completed routing
                 if to_remove_routings then
@@ -908,8 +934,6 @@ local function process_node(node)
                         debug("(" .. node.id .. ") process_node, remove local routing, qname=" .. qname)
                     end
                 end
-
-                local provided_items = total_inserted - input_count
 
                 -- Remove from provided
                 if provided_req and total_inserted > 0 then
@@ -936,53 +960,58 @@ local function process_node(node)
         end
     end
 
+    if requested then
+        for qname, request in pairs(requested) do
+            local count = to_inventories[qname]
+            if count then
+                request.remaining = request.remaining - count
+            end
+        end
+    end
+
+    for qname, count in pairs(input_items) do
+        to_inventories[qname] = (to_inventories[qname] or 0) + count
+    end
 
     -- process request
     if not node.disabled then
         if requested then
-            for item, req in pairs(requested) do
-                local count = to_inventory[item]
-                if not count or count < 0 then
-                    count = 0
-                end
-                count = (contents[item] or 0) + count
-                local needed = req.count - count - req.remaining
+            for qname, request in pairs(requested) do
+                local count = to_inventories[qname] or 0
+                count = (contents[qname] or 0) + count
+                local needed = request.count - count - request.remaining
 
-                debug("(" .. node.id .. ") process_node, request prepare: req.count=" .. req.count .. ",count=" .. count .. ", req.remaining=" .. req.remaining .. ",needed=" .. needed)
+                debug("(" .. node.id .. ") process_node, request prepare: req.count=" .. request.count .. ",content=" .. count .. ", request.remaining=" .. request.remaining .. ",needed=" .. needed)
 
-                local delivery = req.delivery or config.default_delivery
+                local delivery = request.delivery or config.default_delivery
                 if needed >= delivery then
                     local max = 2 * delivery
                     if needed > max then
                         needed = max
                     end
-                    local to_deliver = needed
 
-                    ::next_delivery::
                     do
-                        needed = delivery
-
-                        local producer, provided_item, available = find_producer(node, req, needed)
+                        local producer, provided_item, available = find_producer(node, request, needed)
                         if producer then
                             ---@cast provided_item -nil
                             ---@cast available -nil
 
                             local amount           = math.min(needed, available)
                             provided_item.provided = provided_item.provided + amount
-                            req.remaining          = req.remaining + amount
+                            request.remaining      = request.remaining + amount
 
-                            if not insert_routing(producer, node, req.item, amount) then
+                            --DEBUG
+                            producer.stat2         = (producer.stat2 or 0) + amount
+                            node.stat3             = (node.stat3 or 0) + amount
+                            --ENDDEBUG
+
+                            if not insert_routing(producer, node, request.item, amount) then
                                 goto cancel
                             end
 
-                            to_deliver = to_deliver - amount
-                            if to_deliver > 0 then
-                                goto next_delivery
-                            end
-
-                            debug("(" .. node.id .. ") process_node, request=" .. tools.strip(req))
+                            debug("(" .. node.id .. ") process_node, request=" .. tools.strip(request))
                         else
-                            debug("(" .. node.id .. ") failed to find producer =" .. tools.strip(req))
+                            debug("(" .. node.id .. ") failed to find producer =" .. tools.strip(request))
                         end
                     end
                 end
@@ -1023,9 +1052,7 @@ local function process_node(node)
                         spoil_percent = spoil_values[qname]
                     }
                     if real > 0 then
-                        contents[qname] = contents[qname] - real
-                        input_items[qname] = -real
-                        changed = true
+                        to_inventories[qname] = (to_inventories[qname] or 0) - real
                     end
                     if real ~= count then
                         break
@@ -1035,84 +1062,36 @@ local function process_node(node)
         end
     end
 
-    if changed then
-        remaining = nil
+    remaining = nil
 
-        debug("(" .. node.id .. ") remains to_inventory=" .. tools.strip(to_inventory))
-        for qname, count in pairs(to_inventory) do
-            local item = string_to_items[qname]
-            if not item then
-                item = string_to_item(qname)
-            end
-            ---@cast item -nil
-            if count > 0 then
-                local inserted = inventory.insert {
-                    name = item.name,
-                    count = count,
-                    quality = item.quality,
-                    spoil_percent = spoil_values[qname]
-                }
-                contents[qname] = (contents[qname] or 0) + inserted
-                if inserted ~= count then
-                    if not remaining then
-                        remaining = {}
-                    end
-                    remaining[qname] = count - inserted
-                end
-            elseif count < 0 then
-                local removed = inventory.remove { name = item.name, count = -count, quality = item.name }
-                contents[qname] = (contents[qname] or 0) - removed
-                if contents[qname] < 0 then
-                    contents[qname] = 0
-                end
-            end
+    debug("(" .. node.id .. ") remains to_inventory=" .. tools.strip(to_inventories))
+    for qname, count in pairs(to_inventories) do
+        local item = string_to_items[qname]
+        if not item then
+            item = string_to_item(qname)
         end
-
-        if table_size(input_items) > 0 then
-            debug("(" .. node.id .. ") process_node, input_items=" .. tools.strip(input_items))
-            for qname, count in pairs(input_items) do
-                if (not node.routings) or (not node.routings[qname]) or count < 0 then
-                    local item = string_to_items[qname]
-                    if not item then
-                        item = string_to_item(qname)
-                    end
-
-                    debug("(" .. node.id .. ") process_node, input_items: nodeid=" .. node.id .. ",item=" .. qname .. "," .. count)
-
-                    ---@cast item -nil
-                    if count < 0 then
-                        count = -count
-                        local real = inventory.remove {
-                            name = item.name,
-                            count = count,
-                            quality = item.quality
-                        }
-                        contents[qname] = (contents[qname] or 0) - real
-                        if real ~= count then
-                            log("---> process_node, invalid remove: nodeid=" .. node.id .. ",item=" .. qname .. "," .. count .. " => " .. real)
-                        end
-                    elseif count > 0 then
-                        local inserted = inventory.insert {
-                            name = item.name,
-                            count = count,
-                            quality = item.quality,
-                            spoil_percent = spoil_values[qname]
-                        }
-                        contents[qname] = (contents[qname] or 0) + inserted
-                        if inserted ~= count then
-                            if not remaining then
-                                remaining = {}
-                            end
-                            remaining[qname] = count - inserted
-                        end
-                    end
-                elseif count > 0 then
-                    if not remaining then
-                        remaining = {}
-                    end
-                    remaining[qname] = count
+        ---@cast item -nil
+        if count > 0 then
+            local inserted = inventory.insert {
+                name = item.name,
+                count = count,
+                quality = item.quality,
+                spoil_percent = spoil_values[qname]
+            }
+            contents[qname] = (contents[qname] or 0) + inserted
+            if inserted ~= count then
+                if not remaining then
+                    remaining = {}
                 end
+                remaining[qname] = (count - inserted)
             end
+        elseif count < 0 then
+            local removed = inventory.remove { name = item.name, count = -count, quality = item.quality }
+            local new_value = (contents[qname] or 0) - removed
+            if new_value < 0 then
+                new_value = 0
+            end
+            contents[qname] = new_value
         end
     end
 
