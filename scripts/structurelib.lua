@@ -806,7 +806,7 @@ local function process_node(node)
     --debug("(" .. node.id .. ") Entering,stat1=" ostring(node.stat1) .. ",stat2=" .. tostring(node.stat2) .. ",stat3=" .. tostring(node.stat3) .. ",stat4=" .. tostring(node.stat4))
 
     --- Compute input to node
-    local remai = node.remaining
+    local remaining = node.remaining
     local requested = node.requested
     local spoil_values = node.spoil_values
     local spoil_counts
