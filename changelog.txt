@@ -3,7 +3,7 @@ Version: 2.0.3
 Date: 19. 04. 2025.
   Changes:
     - Rework and improve routing 
-    - Throughput of a requester is limited to (2 * threshold) to avoid lane congestion
+    - Throughput of a requester is limited to (2 * threshold) / s to avoid lane congestion
     - Add 'no propagation' flag to split network into isolated part
     - Add read mode to build request from signals
 ---------------------------------------------------------------------------------------------------
