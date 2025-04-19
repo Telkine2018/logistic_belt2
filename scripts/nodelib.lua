@@ -606,6 +606,9 @@ function nodelib.build_network(devices)
             if node.buffer_size then
                 iopoint.inventory.set_bar(node.buffer_size)
             end
+            if node.read_mode ~= ReadMode.static then
+                node.read_requested = true
+            end
         end
         ::_next::
     end

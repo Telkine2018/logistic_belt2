@@ -273,6 +273,10 @@ local function on_build(entity, tags, player_index)
 			node.provided = tags.provided --[[@as table<string, ProvidedItem> ]]
 			node.restrictions = tags.restrictions --[[@as table<string, boolean> ]]
 			node.buffer_size = tags.buffer_size or 4 --[[@as integer ]]
+			node.read_mode = tags.read_mode
+			if node.read_mode ~= ReadMode.static then
+				node.read_requested = true
+			end
 		end
 		locallib.recompute_container(entity)
 	else

@@ -117,7 +117,7 @@ end
 ---@param player LuaPlayer
 ---@param entity LuaEntity
 function devicegui.open(player, entity)
-	local node = structurelib.get_node(entity)
+	local node = structurelib.get_node(entity) ---@as Node --
 	if not node then
 		if entity.name == device_name then
 			player.opened = nil
@@ -300,30 +300,46 @@ function devicegui.open(player, entity)
 	end
 	add_restrictions_field(restrictions_flow)
 
+	local flow, label, field 
+
 	line = inner_frame.add { type = "line" }
 	line.style.top_margin = 10
 
-	local flow = inner_frame.add { type = "flow" }
-	flow.add { type = "label", caption = { np("no_propagation-label") } }
-	local field = flow.add {
+	local flow = inner_frame.add{type="table", column_count=2}
+
+	label = flow.add { type = "label", caption = { np("no_propagation-label") } }
+	field = flow.add {
 		type = "checkbox",
 		name = np("no_propagation"),
 		tooltip = { np("no_propagation-tooltip") },
 		state = not not node.no_propagation }
 	field.style.left_margin = 10
-	field.style.top_margin = 4
-	flow.style.top_margin = 5
+	field.style.top_margin = 6
+	label.style.top_margin = 6
 
-	flow = inner_frame.add { type = "flow" }
-	flow.add { type = "label", caption = { np("cleaner-label") } }
-	local field = flow.add {
+	label = flow.add { type = "label", caption = { np("read_mode-label") }, tooltip = { np("read_mode-tooltip") }  }
+	field = flow.add {
+		type = "drop-down",
+		name = np("read_mode"),
+		tooltip = { np("read_mode-tooltip") },
+		items = {
+			{np("read_mode.static")}
+			,{np("read_mode.read_once")}
+			,{np("read_mode.dynamic")}
+		},
+		selected_index = node.read_mode or 1 }
+	field.style.left_margin = 10
+	field.style.top_margin = 6
+	label.style.top_margin = 6
+
+	label = flow.add { type = "label", caption = { np("cleaner-label") } }
+	field = flow.add {
 		type = "checkbox",
 		name = np("cleaner"),
 		tooltip = { np("cleaner-tooltip") },
 		state = not not node.cleaner }
-	field.style.left_margin = 10
-	field.style.top_margin = 4
-	flow.style.top_margin = 5
+	field.style.top_margin = 6
+	label.style.top_margin = 6
 end
 
 tools.on_gui_click(np("import-content"),
@@ -470,6 +486,13 @@ local function save_node_parameters(player)
 	local no_propagation = tools.get_child(frame, np("no_propagation"))
 	---@cast no_propagation -nil
 	selected_node.no_propagation = no_propagation.state and true or nil
+
+	local read_mode = tools.get_child(frame, np("read_mode"))
+	---@cast read_mode -nil
+	selected_node.read_mode = read_mode.selected_index
+	if selected_node.read_mode ~= ReadMode.static then
+		selected_node.read_requested = true
+	end
 
 	local priority = tools.get_child(frame, np("priority"))
 	---@cast priority -nil
@@ -685,7 +708,8 @@ local function register_mapping(bp, mapping, surface)
 							requested = node and dup_request(node.requested) --[[@as table]],
 							restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
 							buffer_size = node and node.buffer_size,
-							no_propagation = node and node.no_propagation
+							no_propagation = node and node.no_propagation,
+							read_mode = node and node.read_mode
 						})
 					end
 				elseif locallib.container_type_map[entity.type] then
@@ -696,7 +720,9 @@ local function register_mapping(bp, mapping, surface)
 							provided = dup_request(node.provided) --[[@as table]],
 							requested = dup_request(node.requested) --[[@as table]],
 							restrictions = node and tools.table_dup(node.restrictions) --[[@as table]],
-							buffer_size = node and node.buffer_size
+							buffer_size = node and node.buffer_size,
+							no_propagation = node and node.no_propagation,
+							read_mode = node and node.read_mode
 						})
 					end
 				elseif name == sushi_name then
@@ -960,6 +986,8 @@ local function on_entity_settings_pasted(e)
 		end
 		ndst.restrictions = tools.table_dup(nsrc.restrictions)
 		ndst.no_propagation = nsrc.no_propagation
+		ndst.read_mode = nsrc.read_mode
+		ndst.read_requested = true
 	elseif src.name == sushi_name and dst.name == sushi_name then
 		sushilib.do_paste(src, dst, e)
 	elseif src.name == commons.overflow_name and dst.name == commons.overflow_name then
@@ -973,9 +1001,6 @@ local function on_entity_settings_pasted(e)
 end
 
 tools.on_event(defines.events.on_entity_settings_pasted, on_entity_settings_pasted)
-
---------------------------------
-
 
 -----------------------------------------------
 
@@ -1157,6 +1182,13 @@ end
 
 tools.on_load(factory_organizer_install)
 
-
+tools.on_event(defines.events.on_gui_closed,
+	---@param e EventData.on_gui_closed
+	function(e) 
+		if e.entity and e.entity.type == "constant-combinator" then
+			structurelib.read_all_request_from_signals(e.player_index)
+		end
+	end
+)
 
 return devicegui

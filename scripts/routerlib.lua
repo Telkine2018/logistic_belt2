@@ -417,6 +417,10 @@ function routerlib.on_build(entity, tags)
             node.buffer_size = tags.buffer_size --[[@as integer]]
             locallib.update_buffer_size(node)
         end
+        node.read_mode = tags.read_mode
+        if node.read_mode ~= ReadMode.static then
+            node.read_requested = true
+        end
     end
     routerlib.reconnect_changes()
 end

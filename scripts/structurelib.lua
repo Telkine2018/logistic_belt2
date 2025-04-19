@@ -704,6 +704,83 @@ local function load_spoil(inv, size, spoil_counts, spoil_values)
 end
 
 ---@param node Node
+local function read_request_from_signals(node)
+
+    local container = node.container
+    if not container or not container.valid then 
+        node.requested = nil
+        return
+    end
+
+    local reds = container.get_signals(defines.wire_connector_id.circuit_red)
+    local greens = container.get_signals(defines.wire_connector_id.circuit_green)
+
+    if not reds then
+        node.requested = nil
+        return
+    end
+
+    local green_maps = {}
+    if greens then
+        for _, signal in pairs(greens) do
+            if (signal.signal.type or "item") == "item" then
+                green_maps[signal.signal.name] = signal.count
+            end
+        end
+    end
+
+    local requested =  {}
+    local prev_requested = node.requested or {}
+    for _, signal in pairs(reds) do
+
+        if signal and ((signal.signal.type or "item") == "item") then
+            local qname = item_to_string(signal.signal)
+            ---@cast qname -nil
+            local request = prev_requested[qname]
+            if request then
+                requested[qname] = request 
+                request.count = signal.count
+                local delivery = green_maps[qname]
+                if delivery then
+                    request.delivery = delivery
+                end
+            else
+                ---@type RequestedItem
+                requested[qname] = {
+                    item = qname,
+                    count = signal.count,
+                    delivery = green_maps[qname] or (signal.count / 5),
+                    remaining = 0
+                }
+            end
+        end
+    end
+    node.requested = requested
+end
+
+
+structurelib.read_request_from_signals = read_request_from_signals
+
+---@param force_index integer
+function structurelib.read_all_request_from_signals(force_index)
+
+    ---@type Context
+    if not context then
+        context = get_context()
+    end
+
+    for _, node in pairs(context.nodes) do
+        if node.container and 
+                node.container.valid and 
+                node.container.force_index == force_index and
+                node.read_mode ~= ReadMode.static then
+            node.read_requested = true
+        end
+    end
+    
+end
+
+---@param node Node
 local function process_node(node)
     local inventory = node.inventory
     ---@type table<string, integer>
@@ -717,7 +794,16 @@ local function process_node(node)
         return
     end
 
-    --debug("(" .. node.id .. ") Entering,stat1=" .. tostring(node.stat1) .. ",stat2=" .. tostring(node.stat2) .. ",stat3=" .. tostring(node.stat3) .. ",stat4=" .. tostring(node.stat4))
+    if node.read_requested then
+        if node.read_mode and node.read_mode ~= ReadMode.static then
+            read_request_from_signals(node)
+        end
+        if node.read_mode ~= ReadMode.dynamic then
+            node.read_requested = nil
+        end
+    end
+
+    --debug("(" .. node.id .. ") Entering,stat1=" ostring(node.stat1) .. ",stat2=" .. tostring(node.stat2) .. ",stat3=" .. tostring(node.stat3) .. ",stat4=" .. tostring(node.stat4))
 
     --- Compute input to node
     local remai = node.remaining
@@ -1192,7 +1278,6 @@ end
 --tools.on_nth_tick(30, on_ntick)
 tools.on_event(defines.events.on_tick, on_tick)
 
-
 ---@param entity LuaEntity
 ---@return Node?
 function structurelib.get_node(entity)
@@ -1348,7 +1433,6 @@ local function migration_2_0_1()
         end
     end
 end
-
 
 local migrations_table = {
 

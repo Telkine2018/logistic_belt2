@@ -81,10 +81,19 @@
 ---@field auto_provide boolean?
 ---@field cleaner boolean?
 ---@field cleaner_count integer
+---@field read_requested boolean
+---@field read_mode ReadMode
 ---@field stat1 integer
 ---@field stat2 integer
 ---@field stat3 integer
 ---@field stat4 integer
+
+---@enum ReadMode
+ReadMode = {
+    static = 1,
+    on_demand = 2,
+    dynamic = 3
+}
 
 ---@class Connection
 ---@field id integer
