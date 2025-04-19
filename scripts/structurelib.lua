@@ -275,12 +275,12 @@ function structurelib.reset_node(node, empty_container)
     node.remaining = nil
     node.dist_cache = nil
     node.spoil_values = {}
-    --DEBUG
+    --[[DEBUG
     node.stat1 = nil
     node.stat2 = nil
     node.stat3 = nil
     node.stat4 = nil
-    --ENDDEBUG
+    ENDDEBUG--]]
 end
 
 local reset_node = structurelib.reset_node
@@ -616,7 +616,7 @@ local function insert_routing(producer, node, item, amount)
                 item_routes[output.id] = routing
             end
 
-            debug("(" .. rnode.id .. ") insert_routing, item=" .. item .. ", per_output=" .. per_output .. ",remaining=" .. routing.remaining)
+            --debug("(" .. rnode.id .. ") insert_routing, item=" .. item .. ", per_output=" .. per_output .. ",remaining=" .. routing.remaining)
 
             remaining = remaining - per_output
             if remaining == 0 then
@@ -717,7 +717,7 @@ local function process_node(node)
         return
     end
 
-    debug("(" .. node.id .. ") Entering,stat1=" .. tostring(node.stat1) .. ",stat2=" .. tostring(node.stat2) .. ",stat3=" .. tostring(node.stat3) .. ",stat4=" .. tostring(node.stat4))
+    --debug("(" .. node.id .. ") Entering,stat1=" .. tostring(node.stat1) .. ",stat2=" .. tostring(node.stat2) .. ",stat3=" .. tostring(node.stat3) .. ",stat4=" .. tostring(node.stat4))
 
     --- Compute input to node
     local remai = node.remaining
@@ -771,7 +771,7 @@ local function process_node(node)
             end
         end
 
-        debug("(" .. node.id .. ") process_node, input_items=" .. tools.strip(input_items))
+        --debug("(" .. node.id .. ") process_node, input_items=" .. tools.strip(input_items))
     else
         input_items = remaining
         node.remaining = nil
@@ -805,7 +805,7 @@ local function process_node(node)
         load_spoil(inventory, size, spoil_counts, spoil_values)
     end
 
-    debug("(" .. node.id .. ") process_node, contents=" .. tools.strip(contents))
+    --debug("(" .. node.id .. ") process_node, contents=" .. tools.strip(contents))
 
     --- Update request (item to put in inventory)
     local to_inventories = {}
@@ -823,7 +823,7 @@ local function process_node(node)
                 end
             end
         end
-        debug("(" .. node.id .. ") to_inventory=" .. tools.strip(to_inventories))
+        --debug("(" .. node.id .. ") to_inventory=" .. tools.strip(to_inventories))
     end
 
     -- do routing
@@ -837,26 +837,26 @@ local function process_node(node)
             end
 
             -- Node is provide
-            local content_count, to_inventory = 0, 0
-            if node.auto_provide or (node.provided and node.provided[qname]) then
-                content_count = (contents[qname] or 0)
-                to_inventory = to_inventories[qname] or 0
-            end
+            local content_count
+            content_count = (contents[qname] or 0) + (to_inventories[qname] or 0)
 
             ---@cast item -nil
             local provided_req = node.provided and node.provided[qname]
             local input_count = input_items[qname] or 0
-            local available = content_count + input_count + to_inventory
 
-            local request
-            local reserved = 0
-            if requested then
-                request = requested[qname]
+            if not provided_req then
+                local request = requested and requested[qname]
                 if request then
-                    reserved = math.max(request.remaining, math.ceil(request.count / 2))
+                    local limit = request.count
+                    if content_count <= limit then
+                        content_count = 0
+                    else
+                        content_count = content_count - limit
+                    end
                 end
             end
-            available = available - reserved
+
+            local available = content_count + input_count
 
             if available > 0 then
                 local remaining_available = available
@@ -867,7 +867,7 @@ local function process_node(node)
                     sum = sum + routing.remaining
                 end
 
-                debug("(" .. node.id .. ") process_node, routings before: sum[" .. qname .. "]=" .. sum)
+                --debug("(" .. node.id .. ") process_node, routings before: sum[" .. qname .. "]=" .. sum)
 
                 -- Do routing
                 local total_inserted = 0
@@ -908,10 +908,10 @@ local function process_node(node)
                     end
                 end
 
-                --DEBUG
+                --[[DEBUG
                 node.stat1 = (node.stat1 or 0) + total_inserted
-                --ENDDEBUG
-                debug("(" .. node.id .. ") process_node, routing after: total_inserted[" .. qname .. "]=" .. total_inserted)
+                ENDDEBUG--]]
+                --debug("(" .. node.id .. ") process_node, routing after: total_inserted[" .. qname .. "]=" .. total_inserted)
                 local route_remains = input_count - total_inserted
                 if route_remains == 0 then
                     input_items[qname] = nil
@@ -931,7 +931,7 @@ local function process_node(node)
                             table_insert(to_remove_items, qname)
                         end
 
-                        debug("(" .. node.id .. ") process_node, remove local routing, qname=" .. qname)
+                        --debug("(" .. node.id .. ") process_node, remove local routing, qname=" .. qname)
                     end
                 end
 
@@ -943,7 +943,7 @@ local function process_node(node)
                     end
                     provided_req.provided = new_provided
 
-                    debug("(" .. node.id .. ") process_node, remains provided=" .. tools.strip(node.provided))
+                    --debug("(" .. node.id .. ") process_node, remains provided=" .. tools.strip(node.provided))
                 end
             end
         end
@@ -955,7 +955,7 @@ local function process_node(node)
             if not next(node.routings) then
                 node.routings = nil
 
-                debug("(" .. node.id .. ") process_node, remove storage routing")
+                --debug("(" .. node.id .. ") process_node, remove storage routing")
             end
         end
     end
@@ -981,7 +981,7 @@ local function process_node(node)
                 count = (contents[qname] or 0) + count
                 local needed = request.count - count - request.remaining
 
-                debug("(" .. node.id .. ") process_node, request prepare: req.count=" .. request.count .. ",content=" .. count .. ", request.remaining=" .. request.remaining .. ",needed=" .. needed)
+                --debug("(" .. node.id .. ") process_node, request prepare: req.count=" .. request.count .. ",content=" .. count .. ", request.remaining=" .. request.remaining .. ",needed=" .. needed)
 
                 local delivery = request.delivery or config.default_delivery
                 if needed >= delivery then
@@ -990,6 +990,7 @@ local function process_node(node)
                         needed = max
                     end
 
+                    ::next_provider::
                     do
                         local producer, provided_item, available = find_producer(node, request, needed)
                         if producer then
@@ -1000,18 +1001,22 @@ local function process_node(node)
                             provided_item.provided = provided_item.provided + amount
                             request.remaining      = request.remaining + amount
 
-                            --DEBUG
+                            --[[DEBUG
                             producer.stat2         = (producer.stat2 or 0) + amount
                             node.stat3             = (node.stat3 or 0) + amount
-                            --ENDDEBUG
+                            ENDDEBUG--]]
 
                             if not insert_routing(producer, node, request.item, amount) then
                                 goto cancel
                             end
 
-                            debug("(" .. node.id .. ") process_node, request=" .. tools.strip(request))
+                            needed = needed - amount
+                            if needed > 0 then
+                                goto next_provider
+                            end
+                            --debug("(" .. node.id .. ") process_node, request=" .. tools.strip(request))
                         else
-                            debug("(" .. node.id .. ") failed to find producer =" .. tools.strip(request))
+                            --debug("(" .. node.id .. ") failed to find producer =" .. tools.strip(request))
                         end
                     end
                 end
@@ -1064,7 +1069,7 @@ local function process_node(node)
 
     remaining = nil
 
-    debug("(" .. node.id .. ") remains to_inventory=" .. tools.strip(to_inventories))
+    --debug("(" .. node.id .. ") remains to_inventory=" .. tools.strip(to_inventories))
     for qname, count in pairs(to_inventories) do
         local item = string_to_items[qname]
         if not item then
@@ -1154,7 +1159,7 @@ local function process_node(node)
         end
     end
     node.contents = contents
-    debug("(" .. node.id .. ") process_node, end content=" .. tools.strip(contents) .. ",remaining=" .. tools.strip(remaining))
+    --debug("(" .. node.id .. ") process_node, end content=" .. tools.strip(contents) .. ",remaining=" .. tools.strip(remaining))
 end
 
 ---@param e {tick:integer}
