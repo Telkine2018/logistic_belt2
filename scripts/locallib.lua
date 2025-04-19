@@ -419,11 +419,17 @@ function locallib.get_belt_speed(entity)
 		position = tools.get_back(entity.direction, entity.position),
 		type = locallib.belt_and_loader_types
 	}
-	if (#entities == 0) then
-		return nil
-	else
+	if (#entities > 0) then
 		return entities[1].prototype.belt_speed
 	end
+	local entities = entity.surface.find_entities_filtered {
+		position = tools.get_front(entity.direction, entity.position),
+		type = locallib.belt_and_loader_types
+	}
+	if (#entities > 0) then
+		return entities[1].prototype.belt_speed
+	end
+	return nil
 end
 
 ---@param node Node
