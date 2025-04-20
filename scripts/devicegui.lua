@@ -448,6 +448,8 @@ local function save_node_parameters(player)
 	local selected_node = vars.selected_node
 	if not selected_node or not selected_node.container.valid then return nil end
 
+	local selected = vars.selected --[[@as LuaEntity]]
+
 	local frame = get_frame(player)
 	if not frame then return end
 
@@ -488,10 +490,14 @@ local function save_node_parameters(player)
 	selected_node.no_propagation = no_propagation.state and true or nil
 
 	local read_mode = tools.get_child(frame, np("read_mode"))
+	local previous_read_node = selected_node.read_mode or ReadMode.static
 	---@cast read_mode -nil
 	selected_node.read_mode = read_mode.selected_index
 	if selected_node.read_mode ~= ReadMode.static then
 		selected_node.read_requested = true
+	end
+	if previous_read_node ~= selected_node.read_mode then
+		routerlib.set_new_master(selected)
 	end
 
 	local priority = tools.get_child(frame, np("priority"))

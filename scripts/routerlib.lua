@@ -160,6 +160,35 @@ function routerlib.remove_from_cluster(router)
     return nil
 end
 
+---@param new_master Router
+function routerlib.set_new_master(new_master)
+    local link_id = new_master.link_id
+    local context = get_context()
+    local cluster = context.clusters[link_id] --[[@as Cluster]]
+
+    if cluster then
+        cluster.routers[new_master.unit_number] = nil
+
+        local _, other = next(cluster.routers)
+        if new_master.unit_number == cluster.masterid then
+            return
+        else
+            local node = context.nodes[cluster.masterid]
+            if node then
+                context.nodes[cluster.masterid] = nil
+                cluster.masterid = new_master.unit_number
+                context.nodes[cluster.masterid] = node
+                context.current_node_id = nil
+                node.container = new_master
+                node.id = cluster.masterid
+                node.inventory = new_master.get_inventory(defines.inventory.chest) --[[@as LuaInventory]]
+                changed_clusters[link_id] = cluster
+                structurelib.rebuild_output_map_for_parent(node)
+            end
+        end
+    end
+end
+
 ---@param link_id integer
 ---@return Cluster
 function routerlib.get_or_create_cluster(link_id)

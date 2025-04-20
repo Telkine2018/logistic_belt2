@@ -705,9 +705,8 @@ end
 
 ---@param node Node
 local function read_request_from_signals(node)
-
     local container = node.container
-    if not container or not container.valid then 
+    if not container or not container.valid then
         node.requested = nil
         return
     end
@@ -729,29 +728,36 @@ local function read_request_from_signals(node)
         end
     end
 
-    local requested =  {}
+    local requested = {}
     local prev_requested = node.requested or {}
     for _, signal in pairs(reds) do
-
         if signal and ((signal.signal.type or "item") == "item") then
             local qname = item_to_string(signal.signal)
             ---@cast qname -nil
             local request = prev_requested[qname]
-            if request then
-                requested[qname] = request 
-                request.count = signal.count
+
+            local count = signal.count
+            if count > 0 then
                 local delivery = green_maps[qname]
-                if delivery then
-                    request.delivery = delivery
+                if not delivery or delivery < 0 then
+                    delivery = math.max(math.floor(signal.count / 5), 1)
+                elseif delivery > count then
+                    delivery = count
                 end
-            else
-                ---@type RequestedItem
-                requested[qname] = {
-                    item = qname,
-                    count = signal.count,
-                    delivery = green_maps[qname] or (signal.count / 5),
-                    remaining = 0
-                }
+                if request then
+                    request.count = count
+                    if delivery then
+                        request.delivery = delivery
+                    end
+                else
+                    ---@type RequestedItem
+                    requested[qname] = {
+                        item = qname,
+                        count = count,
+                        delivery = delivery,
+                        remaining = 0
+                    }
+                end
             end
         end
     end
@@ -763,21 +769,19 @@ structurelib.read_request_from_signals = read_request_from_signals
 
 ---@param force_index integer
 function structurelib.read_all_request_from_signals(force_index)
-
     ---@type Context
     if not context then
         context = get_context()
     end
 
     for _, node in pairs(context.nodes) do
-        if node.container and 
-                node.container.valid and 
-                node.container.force_index == force_index and
-                node.read_mode ~= ReadMode.static then
+        if node.container and
+            node.container.valid and
+            node.container.force_index == force_index and
+            node.read_mode ~= ReadMode.static then
             node.read_requested = true
         end
     end
-    
 end
 
 ---@param node Node
@@ -967,12 +971,15 @@ local function process_node(node)
                         inserted_amount = remaining_available
                     end
 
-                    local real_inserted = routing.output.inventory.insert {
-                        name = item.name,
-                        count = inserted_amount,
-                        quality = item.quality,
-                        spoil_percent = spoil_values[qname]
-                    }
+                    local real_inserted = 0
+                    if inserted_amount > 0 then
+                        real_inserted = routing.output.inventory.insert {
+                            name = item.name,
+                            count = inserted_amount,
+                            quality = item.quality,
+                            spoil_percent = spoil_values[qname]
+                        }
+                    end
 
                     if real_inserted ~= inserted_amount then
                         node.saturated = true

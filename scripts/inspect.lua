@@ -203,6 +203,13 @@ function inspectlib.show(player, entity)
         local inner_frame = get_frame(player)
 
         local msg = { "", "Node(" .. node.id .. ") " }
+        if entity.name == commons.router_name then
+            local context = structurelib.get_context()
+            local cluster = context.clusters[entity.link_id]
+            if cluster and cluster.masterid == entity.unit_number then
+                table.insert(msg, " MASTER ")
+            end
+        end
         if node.disabled then
             table.insert(msg, "[img=" .. prefix .. "_stopped]")
         end
