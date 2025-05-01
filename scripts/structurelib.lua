@@ -1374,7 +1374,7 @@ end
 ---@param context Context
 function structurelib.repair(context)
     for _, iopoint in pairs(context.iopoints) do
-        if iopoint.container and iopoint.container.valid then
+        if iopoint.container and iopoint.container.valid and iopoint.device.valid then
             local containers = iopoint.device.surface.find_entities_filtered
                 { position = iopoint.container.position, name = commons.chest_name, radius = 0.5 }
             for _, c in pairs(containers) do
