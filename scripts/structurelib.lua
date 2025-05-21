@@ -377,6 +377,7 @@ local function find_producer(node, req, amount)
             local test_node = context.nodes[req.last_provider_node]
             if test_node and test_node.provided and not test_node.saturated then
                 local provided_item = test_node.provided[item]
+                if not provided_item then goto skip end
                 local available = (test_node.contents[item] or 0) - provided_item.provided
                 if available >= amount then
                     local last_routings = req.last_routings
