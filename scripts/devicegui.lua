@@ -185,6 +185,15 @@ function devicegui.open(player, entity)
 	--]]
 	titleflow.add {
 		type = "sprite-button",
+		name = np("import"),
+		tooltip = { np("import_tooltip") },
+		style = "frame_action_button",
+		mouse_button_filter = { "left" },
+		sprite = prefix .. "_import_white",
+		hovered_sprite = prefix .. "_import_black"
+	}
+	titleflow.add {
+		type = "sprite-button",
 		name = np("reset"),
 		tooltip = { np("reset_tooltip") },
 		style = "frame_action_button",
@@ -300,12 +309,12 @@ function devicegui.open(player, entity)
 	end
 	add_restrictions_field(restrictions_flow)
 
-	local flow, label, field 
+	local flow, label, field
 
 	line = inner_frame.add { type = "line" }
 	line.style.top_margin = 10
 
-	local flow = inner_frame.add{type="table", column_count=2}
+	local flow = inner_frame.add { type = "table", column_count = 2 }
 
 	label = flow.add { type = "label", caption = { np("no_propagation-label") } }
 	field = flow.add {
@@ -317,15 +326,15 @@ function devicegui.open(player, entity)
 	field.style.top_margin = 6
 	label.style.top_margin = 6
 
-	label = flow.add { type = "label", caption = { np("read_mode-label") }, tooltip = { np("read_mode-tooltip") }  }
+	label = flow.add { type = "label", caption = { np("read_mode-label") }, tooltip = { np("read_mode-tooltip") } }
 	field = flow.add {
 		type = "drop-down",
 		name = np("read_mode"),
 		tooltip = { np("read_mode-tooltip") },
 		items = {
-			{np("read_mode.static")}
-			,{np("read_mode.read_once")}
-			,{np("read_mode.dynamic")}
+			{ np("read_mode.static") }
+			, { np("read_mode.read_once") }
+		, { np("read_mode.dynamic") }
 		},
 		selected_index = node.read_mode or 1 }
 	field.style.left_margin = 10
@@ -399,6 +408,102 @@ tools.on_gui_click(np("reset"),
 			player.print({ np("reset_stopped"), tostring(count) })
 		end
 	end)
+
+tools.on_gui_click(np("import"),
+
+	---@param e EventData.on_gui_click
+	function(e)
+		local player = game.players[e.player_index]
+		local vars = get_vars(player)
+
+		---@type Node
+		local node = vars.selected_node
+		if not node or not node.container.valid then return end
+
+		local panel = get_frame(player)
+		if not panel then return end
+
+		local ingredients
+		local func = "get_ingredients"
+		if e.shift then
+			func = "get_outputs"
+		end
+
+		if remote.interfaces["factory_analyzer"] and remote.interfaces["factory_analyzer"][func] then
+			ingredients = remote.call("factory_analyzer", func, e.player_index)
+		end
+
+		if not ingredients and remote.interfaces["factory_graph"] and remote.interfaces["factory_graph"][func] then
+			ingredients = remote.call("factory_graph", func, e.player_index)
+		end
+
+		if not ingredients then
+			player.print({ np("no-data-to-import") }, commons.print_settings)
+			return
+		end
+
+		if not e.control then
+		
+			local f_request_table = tools.get_child(panel, np("request_table"))
+			if not f_request_table then return end
+
+			local exist_map = {}
+			local children = f_request_table.children
+			local count = #children
+			for i = 1, count, 3 do
+				local existing = children[i].elem_value
+				if existing then
+					exist_map[existing.name] = true
+				end
+			end
+
+			for name, _ in pairs(ingredients) do
+				local signal = tools.id_to_signal(name)
+				if signal and signal.type == "item" and prototypes.item[signal.name] then
+					local item = prototypes.item[signal.name]
+					if item and not exist_map[signal.name] then
+						local stack_size = item.stack_size
+						children = f_request_table.children
+						count = #children
+
+						children[count - 2].elem_value = signal
+						children[count - 1].text = tostring(stack_size)
+						children[count].text = tostring(stacksize_to_delivery(stack_size))
+						add_request_field(f_request_table)
+					end
+				end
+			end
+		else
+
+			local provide_table = tools.get_child(panel, np("provide_table"))
+			if not provide_table then return end
+
+			local exist_map = {}
+			local children = provide_table.children
+			local count = #children
+			for i = 1, count do
+				local existing = children[i].elem_value
+				if existing then
+					exist_map[existing.name] = true
+				end
+			end
+
+			local last_field = children[count]
+			for name, _ in pairs(ingredients) do
+				local signal = tools.id_to_signal(name)
+				if signal and signal.type == "item" and prototypes.item[signal.name] then
+					local item = prototypes.item[signal.name]
+					if item and not exist_map[signal.name] then
+
+						last_field.elem_value = signal
+						last_field = add_provide_field(provide_table)
+						count = count + 1
+					end
+				end
+			end
+		end
+	end
+)
 
 tools.on_gui_click(np("inspect"),
 	---@param e EventData.on_gui_click
@@ -1190,7 +1295,7 @@ tools.on_load(factory_organizer_install)
 
 tools.on_event(defines.events.on_gui_closed,
 	---@param e EventData.on_gui_closed
-	function(e) 
+	function(e)
 		if e.entity and e.entity.type == "constant-combinator" then
 			structurelib.read_all_request_from_signals(e.player_index)
 		end

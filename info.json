@@ -1,6 +1,6 @@
 {
   "name": "logistic_belt2",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "title": "Logistic belt 2",
   "author": "Telkine2018",
   "contact": "",
@@ -10,7 +10,7 @@
   "dependencies": [
 		"base >= 2.0.0" ,
 		"flib >= 0.8.2",
-		"? space-exploration",
+ 		"? space-exploration",
     "? Transport_Drones "
 	]
 }

@@ -406,6 +406,7 @@ function routerlib.on_build(entity, tags)
         end
         return
     end
+
     local cluster
     if #routers == 1 then
         local link_id = tools.get_id()
@@ -536,6 +537,9 @@ local router_tech1 = prefix .. "-router-tech"
 ---@param force LuaForce
 function routerlib.get_router_max(force)
     local router_max = settings.startup[prefix .. "-max-router-entity"].value
+    if router_max == 0 then
+        return 1000
+    end
     local tech = force.technologies[router_tech1]
     if not tech or not tech.enabled then
         return router_max
