@@ -49,7 +49,7 @@ local function add_request_field(request_flow)
 	local item_field = request_flow.add {
 		type = "choose-elem-button",
 		elem_type = "item-with-quality",
-		tooltip = { np("request_item_tooltip") }
+		-- tooltip = { np("request_item_tooltip") }
 	}
 	local wfield = 70
 	tools.set_name_handler(item_field, np("request_item"))
@@ -80,7 +80,7 @@ local function add_provide_field(request_flow)
 	local item_field = request_flow.add {
 		type = "choose-elem-button",
 		elem_type = "item-with-quality",
-		tooltip = { np("provided_item_tooltip") }
+		-- tooltip = { np("provided_item_tooltip") }
 	}
 	tools.set_name_handler(item_field, np("provide_item"))
 	return item_field

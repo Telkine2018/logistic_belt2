@@ -190,6 +190,26 @@ local function clean()
     game.print("io points=" .. iopoint_count .. ",node count=" .. node_count)
 end
 
+local function repair1() 
+
+    local context = get_context()
+    local count = 0
+    for id, node in pairs(context.nodes) do
+        if node.requested then
+            for name, req in pairs(node.requested) do
+                if (not req.delivery) then
+                    req.delivery = math.ceil(req.count / 2)
+                    count = count + 1
+                elseif  (req.delivery >= req.count) then
+                    req.delivery = math.ceil(req.count / 2)
+                    count = count + 1
+                end
+            end
+        end
+    end
+    game.print("Repair " .. count .. " requests")
+end
+
 
 commands.add_command("logistic_belt2_dump", { "logistic_belt2_dump" },
     ---@param command CustomCommandData
@@ -227,4 +247,10 @@ commands.add_command("logistic_belt2_clean", { "logistic_belt2_clean" },
 ---@param command CustomCommandData
 function(command)
     clean()
+end)
+
+commands.add_command("logistic_belt2_repair1", { "logistic_belt2_repair1" },
+---@param command CustomCommandData
+function(command)
+    repair1()
 end)

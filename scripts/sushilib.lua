@@ -323,7 +323,9 @@ local function on_gui_open_sushi_panel(event)
 				local qname = lane_items[i]
 				if qname then
 					local item = tools.string_to_item(qname)
-					items_flow[np("lane-item-" .. i)].elem_value = item
+					if prototypes.item[item.name] then
+						items_flow[np("lane-item-" .. i)].elem_value = item
+					end
 				end
 			end
 		end
