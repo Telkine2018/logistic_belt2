@@ -174,7 +174,7 @@ function structurelib.get_inventory(container)
     local type = container.type
     if type == "assembling-machine" then
         if container.name ~= "supply-depot" then
-            inventory = container.get_inventory(defines.inventory.assembling_machine_output) --[[@as LuaInventory]]
+            inventory = container.get_inventory(defines.inventory.crafter_output) --[[@as LuaInventory]]
         else
             local chest = (container.surface.find_entities_filtered { position = container.position, type = "container" })[1]
             if chest then
@@ -212,7 +212,7 @@ function structurelib.create_node(container)
     }
     if container.type == "assembling-machine" then
         if container.name ~= "supply-depot" then
-            node.inventory = container.get_inventory(defines.inventory.assembling_machine_output) --[[@as LuaInventory]]
+            node.inventory = container.get_inventory(defines.inventory.crafter_output) --[[@as LuaInventory]]
         else
             local chest = (container.surface.find_entities_filtered { position = container.position, type = "container" })[1]
             if chest then
