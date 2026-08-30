@@ -1,14 +1,14 @@
 {
   "name": "logistic_belt2",
-  "version": "2.0.7",
+  "version": "2.1.0",
   "title": "Logistic belt 2",
   "author": "Telkine2018",
   "contact": "",
   "homepage": "",
   "description": "Build a network of belt on requester/provider model",
-  "factorio_version": "2.0",
+  "factorio_version": "2.1",
   "dependencies": [
-		"base >= 2.0.0" ,
+		"base >= 2.1.0" ,
 		"flib >= 0.8.2",
  		"? space-exploration",
     "? Transport_Drones "
